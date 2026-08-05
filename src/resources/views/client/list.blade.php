@@ -36,7 +36,7 @@
                         </div>
                         <div class="ss-stat">
                             <dt>Divisiones</dt>
-                            <dd>{{ $state['splits_used'] }} / {{ $state['splits_max'] }}</dd>
+                            <dd>{{ $state['splits_used'] }} / {{ $state['splits_unlimited'] ? 'sin limite' : $state['splits_max'] }}</dd>
                         </div>
                     </dl>
                     <a class="ss-btn ss-btn--primary" href="{{ route('serversplitter.show', $server->uuidShort) }}">

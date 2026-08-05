@@ -27,7 +27,7 @@ class AdminController extends Controller
             'settings' => $this->splitter->settings(),
             'eggs' => Egg::query()->with('nest')->orderBy('name')->get(),
             'rules' => SplitterEggRule::query()->with('egg.nest')->get(),
-            'limits' => SplitterLimit::query()->with('server')->get(),
+            'limitedServers' => SplitterLimit::query()->count(),
             'splits' => ServerSplit::query()->with(['server', 'parent'])->orderByDesc('id')->limit(50)->get(),
             'totalSplits' => ServerSplit::query()->count(),
             'hasApiKey' => (string) (SplitterSetting::read('api_key_hash') ?? '') !== '',
@@ -57,7 +57,7 @@ class AdminController extends Controller
 
         SplitterSetting::write($data);
 
-        return redirect()->route('admin.serversplitter.index')
+        return redirect()->to($this->panelUrl('general'))
             ->with('serversplitter:success', 'Configuracion guardada correctamente.');
     }
 
@@ -77,7 +77,7 @@ class AdminController extends Controller
 
         SplitterEggRule::query()->updateOrCreate(['egg_id' => $data['egg_id']], $data);
 
-        return redirect()->route('admin.serversplitter.index')
+        return redirect()->to($this->panelUrl('eggs'))
             ->with('serversplitter:success', 'Regla de egg guardada.');
     }
 
@@ -85,32 +85,8 @@ class AdminController extends Controller
     {
         SplitterEggRule::query()->whereKey($rule)->delete();
 
-        return redirect()->route('admin.serversplitter.index')
+        return redirect()->to($this->panelUrl('eggs'))
             ->with('serversplitter:success', 'Regla de egg eliminada.');
-    }
-
-    public function storeLimit(Request $request): RedirectResponse
-    {
-        $data = $request->validate([
-            'server_id' => 'required|integer|exists:servers,id',
-            'max_splits' => 'nullable|integer|min:0',
-            'max_memory' => 'nullable|integer|min:0',
-            'max_disk' => 'nullable|integer|min:0',
-            'max_cpu' => 'nullable|integer|min:0',
-        ]);
-
-        SplitterLimit::query()->updateOrCreate(['server_id' => $data['server_id']], $data);
-
-        return redirect()->route('admin.serversplitter.index')
-            ->with('serversplitter:success', 'Limites del servidor guardados.');
-    }
-
-    public function destroyLimit(int $limit): RedirectResponse
-    {
-        SplitterLimit::query()->whereKey($limit)->delete();
-
-        return redirect()->route('admin.serversplitter.index')
-            ->with('serversplitter:success', 'Limites del servidor eliminados.');
     }
 
     public function destroySplit(int $split): RedirectResponse
@@ -118,34 +94,38 @@ class AdminController extends Controller
         $model = ServerSplit::query()->with(['server', 'parent'])->find($split);
 
         if ($model === null) {
-            return redirect()->route('admin.serversplitter.index')
+            return redirect()->to($this->panelUrl('splits'))
                 ->with('serversplitter:error', 'Esa division ya no existe.');
         }
 
         try {
             $this->splitter->deleteSplit($model, $this->currentUser(), true);
         } catch (\Throwable $e) {
-            return redirect()->route('admin.serversplitter.index')
+            return redirect()->to($this->panelUrl('splits'))
                 ->with('serversplitter:error', $e->getMessage());
         }
 
-        return redirect()->route('admin.serversplitter.index')
+        return redirect()->to($this->panelUrl('splits'))
             ->with('serversplitter:success', 'Division eliminada y recursos devueltos al padre.');
     }
 
-    public function unlock(int $server): RedirectResponse
+    public function unlock(Request $request): RedirectResponse
     {
-        $model = Server::query()->find($server);
+        $data = $request->validate([
+            'server_id' => 'required|integer|min:1',
+        ]);
+
+        $model = Server::query()->find($data['server_id']);
 
         if ($model === null) {
-            return redirect()->route('admin.serversplitter.index')
+            return redirect()->to($this->panelUrl('tools'))
                 ->with('serversplitter:error', 'Servidor no encontrado.');
         }
 
         $this->splitter->locks()->release($model->id, '');
         \Illuminate\Support\Facades\DB::table('serversplitter_locks')->where('server_id', $model->id)->delete();
 
-        return redirect()->route('admin.serversplitter.index')
+        return redirect()->to($this->panelUrl('tools'))
             ->with('serversplitter:success', 'Bloqueo liberado.');
     }
 
@@ -154,8 +134,18 @@ class AdminController extends Controller
         SplitterSetting::flush();
         $this->splitter->locks()->pruneExpired();
 
-        return redirect()->route('admin.serversplitter.index')
+        return redirect()->to($this->panelUrl('tools'))
             ->with('serversplitter:success', 'Cache de configuracion limpiada y bloqueos caducados eliminados.');
+    }
+
+    /**
+     * URL del panel de la extension apuntando a una pestana concreta.
+     *
+     * @param string $tab general|eggs|splits|tools
+     */
+    protected function panelUrl(string $tab = 'general'): string
+    {
+        return route('admin.serversplitter.index') . '#ss-tab-' . $tab;
     }
 
     protected function currentUser(): \Pterodactyl\Models\User

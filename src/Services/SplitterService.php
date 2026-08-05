@@ -80,15 +80,30 @@ class SplitterService
         return SplitterLimit::query()->where('server_id', $parent->id)->first();
     }
 
+    /**
+     * Numero maximo de divisiones permitidas para un servidor padre.
+     *
+     * El valor 0 significa "ilimitado" (misma convencion que Pterodactyl usa
+     * para memory/disk/cpu). Un limite por servidor a null indica que no hay
+     * limite propio y se usa el valor global.
+     */
     public function maxSplits(Server $parent): int
     {
         $limit = $this->limitFor($parent);
 
-        if ($limit && $limit->max_splits !== null && $limit->max_splits > 0) {
-            return (int) $limit->max_splits;
+        if ($limit && $limit->max_splits !== null) {
+            return max(0, (int) $limit->max_splits);
         }
 
-        return (int) $this->settings()['max_splits'];
+        return max(0, (int) $this->settings()['max_splits']);
+    }
+
+    /**
+     * True si el servidor no tiene tope de divisiones.
+     */
+    public function hasUnlimitedSplits(Server $parent): bool
+    {
+        return $this->maxSplits($parent) === 0;
     }
 
     /**
@@ -136,7 +151,8 @@ class SplitterService
             $children = $this->children($parent);
             $max = $this->maxSplits($parent);
 
-            if ($children->count() >= $max) {
+            // 0 = ilimitado: no se aplica ningun tope.
+            if ($max > 0 && $children->count() >= $max) {
                 throw new SplitterException(sprintf('Has alcanzado el limite de divisiones para este servidor (%d).', $max));
             }
 
@@ -376,6 +392,7 @@ class SplitterService
         $children = $this->children($parent);
         $limit = $this->limitFor($parent);
         $settings = $this->settings();
+        $max = $this->maxSplits($parent);
 
         return [
             'server' => [
@@ -391,7 +408,9 @@ class SplitterService
             'is_child' => $this->isChild($parent),
             'locked' => $this->locks->isLocked($parent->id),
             'splits_used' => $children->count(),
-            'splits_max' => $this->maxSplits($parent),
+            'splits_max' => $max,
+            'splits_unlimited' => $max === 0,
+            'splits_available' => $max === 0 ? null : max(0, $max - $children->count()),
             'purchased_limits' => $limit ? [
                 'max_splits' => $limit->max_splits,
                 'max_memory' => $limit->max_memory,

@@ -17,6 +17,11 @@ declare(strict_types=1);
  *   resources/views/templates/wrapper.blade.php -> <script> que inyecta la
  *                                                  pestana "Divisiones" en la
  *                                                  SPA de cliente
+ *   resources/views/admin/servers/new.blade.php -> limites de division al
+ *                                                  crear un servidor
+ *   resources/views/admin/servers/view/build.blade.php
+ *                                               -> los mismos limites al
+ *                                                  editar el build
  *
  * Todo lo insertado queda entre los marcadores serversplitter:begin/end, asi
  * que aplicar el parche dos veces no duplica nada y 'unpatch' lo deja como
@@ -50,6 +55,14 @@ $targets = [
     'panel de cliente' => [
         'file' => $panel . '/resources/views/templates/wrapper.blade.php',
         'insert' => 'insertClientScript',
+    ],
+    'crear servidor' => [
+        'file' => $panel . '/resources/views/admin/servers/new.blade.php',
+        'insert' => 'insertServerCreateFields',
+    ],
+    'editar servidor (build)' => [
+        'file' => $panel . '/resources/views/admin/servers/view/build.blade.php',
+        'insert' => 'insertServerBuildFields',
     ],
 ];
 
@@ -159,6 +172,51 @@ function insertClientScript(string $contents): ?string
 
     $block = wrap($indent, [
         $inner . '<script src="{{ url(\'extensions/serversplitter/serversplitter-inject.js\') }}" defer></script>',
+    ]);
+
+    $lineStart = lineStartAt($contents, $close);
+
+    return substr($contents, 0, $lineStart) . $block . substr($contents, $lineStart);
+}
+
+/**
+ * Campos de limites en el formulario de creacion de servidores (no hay
+ * servidor todavia, asi que el partial se incluye sin modelo).
+ */
+function insertServerCreateFields(string $contents): ?string
+{
+    return insertLimitFields($contents, 'null');
+}
+
+/**
+ * Campos de limites en la pestana "Build Configuration" de un servidor.
+ */
+function insertServerBuildFields(string $contents): ?string
+{
+    return insertLimitFields($contents, '$server');
+}
+
+/**
+ * Inserta el @include del partial dentro del formulario existente, justo
+ * antes del pie del ultimo box (donde esta el boton de guardar) para que los
+ * campos viajen en el mismo submit.
+ */
+function insertLimitFields(string $contents, string $server): ?string
+{
+    $close = strripos($contents, '<div class="box-footer">');
+
+    if ($close === false) {
+        $close = strripos($contents, '</form>');
+    }
+
+    if ($close === false) {
+        return null;
+    }
+
+    $indent = indentOfLineAt($contents, $close);
+
+    $block = wrap($indent, [
+        $indent . "@include('serversplitter::admin.partials.server-limits', ['ssServer' => " . $server . '])',
     ]);
 
     $lineStart = lineStartAt($contents, $close);

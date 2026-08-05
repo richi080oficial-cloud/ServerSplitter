@@ -7,7 +7,8 @@
 
     <h1 class="ss-title">{{ $server->name }}</h1>
     <p class="ss-muted">
-        Divisiones usadas: <strong>{{ $state['splits_used'] }}</strong> de <strong>{{ $state['splits_max'] }}</strong>
+        Divisiones usadas: <strong>{{ $state['splits_used'] }}</strong> de
+        <strong>{{ $state['splits_unlimited'] ? 'ilimitadas' : $state['splits_max'] }}</strong>
         &middot; Modo: <strong>{{ $distribute ? 'reparto equitativo' : 'resta de la diferencia' }}</strong>
     </p>
 
@@ -95,7 +96,7 @@
         @endif
     </section>
 
-    @if (!$state['is_child'] && $settings['enabled'] && $state['splits_used'] < $state['splits_max'])
+    @if (!$state['is_child'] && $settings['enabled'] && ($state['splits_unlimited'] || $state['splits_used'] < $state['splits_max']))
         <section class="ss-card" aria-labelledby="ss-new">
             <h2 class="ss-card__title" id="ss-new">Crear una nueva division</h2>
 
@@ -188,7 +189,7 @@
                 </form>
             @endif
         </section>
-    @elseif (!$state['is_child'] && $state['splits_used'] >= $state['splits_max'])
+    @elseif (!$state['is_child'] && !$state['splits_unlimited'] && $state['splits_used'] >= $state['splits_max'])
         <section class="ss-card">
             <p class="ss-muted">
                 Has alcanzado el maximo de divisiones ({{ $state['splits_max'] }}). Amplia tu plan o elimina una

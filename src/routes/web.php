@@ -38,9 +38,7 @@ Route::middleware(['web', 'auth', AdminAuthenticate::class])
         Route::patch('/settings', [AdminController::class, 'updateSettings'])->name('settings.update');
         Route::post('/eggs', [AdminController::class, 'storeEggRule'])->name('eggs.store');
         Route::delete('/eggs/{rule}', [AdminController::class, 'destroyEggRule'])->name('eggs.destroy');
-        Route::post('/limits', [AdminController::class, 'storeLimit'])->name('limits.store');
-        Route::delete('/limits/{limit}', [AdminController::class, 'destroyLimit'])->name('limits.destroy');
         Route::delete('/splits/{split}', [AdminController::class, 'destroySplit'])->name('splits.destroy');
-        Route::post('/unlock/{server}', [AdminController::class, 'unlock'])->name('unlock');
+        Route::post('/unlock', [AdminController::class, 'unlock'])->name('unlock');
         Route::post('/maintenance', [AdminController::class, 'rebuildInfo'])->name('maintenance');
     });

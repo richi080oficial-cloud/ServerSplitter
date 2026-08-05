@@ -14,6 +14,7 @@ return [
         'enabled' => true,
 
         // Numero maximo de divisiones por servidor padre (puede sobreescribirse por servidor).
+        // 0 = ilimitado, siguiendo la misma convencion que Pterodactyl usa para memory/disk/cpu.
         'max_splits' => 3,
 
         // difference  -> los recursos del hijo se restan del padre (y se devuelven al borrarlo)
