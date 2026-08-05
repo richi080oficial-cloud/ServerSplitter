@@ -206,6 +206,14 @@ provider_registered() {
         "${PANEL_DIR}/config/app.php" "${PANEL_DIR}/bootstrap/providers.php" 2>/dev/null
 }
 
+# Los parches de interfaz (menú de admin + panel de cliente) se marcan con
+# comentarios Blade, así que basta con buscarlos.
+panel_patched() {
+    grep -rq 'serversplitter:begin' \
+        "${PANEL_DIR}/resources/views/layouts/admin.blade.php" \
+        "${PANEL_DIR}/resources/views/templates/wrapper.blade.php" 2>/dev/null
+}
+
 # ---------------------------------------------------------------------------
 # Instalación
 # ---------------------------------------------------------------------------
@@ -220,6 +228,7 @@ do_install() {
 
     [ -d "${SOURCE_DIR}/src" ] || die "No se encuentra ${SOURCE_DIR}/src"
     [ -f "${SOURCE_DIR}/tools/register-provider.php" ] || die "Falta tools/register-provider.php en el repositorio."
+    [ -f "${SOURCE_DIR}/tools/patch-panel.php" ] || die "Falta tools/patch-panel.php en el repositorio."
 
     info "Panel:          ${PANEL_DIR}"
     info "Usuario web:    ${WEB_USER}"
@@ -243,6 +252,12 @@ do_install() {
     php "${STATE_DIR}/source/tools/register-provider.php" register "$PANEL_DIR" \
         || die "No se pudo registrar el provider. Añádelo manualmente: ${PROVIDER_CLASS}::class,"
 
+    info "Integrando los enlaces en la interfaz del panel…"
+    backup_file "${PANEL_DIR}/resources/views/layouts/admin.blade.php"
+    backup_file "${PANEL_DIR}/resources/views/templates/wrapper.blade.php"
+    php "${STATE_DIR}/source/tools/patch-panel.php" patch "$PANEL_DIR" \
+        || warn "Algún parche de interfaz no se pudo aplicar; la extensión funciona, pero tendrás que entrar por URL."
+
     clear_caches
 
     info "Ejecutando migraciones…"
@@ -257,6 +272,7 @@ do_install() {
     printf '\n  %sAdministración:%s  %s/admin/serversplitter\n' "$C_BOLD" "$C_RESET" "${url:-https://tu-panel}"
     printf '  %sCliente:%s         %s/serversplitter\n' "$C_BOLD" "$C_RESET" "${url:-https://tu-panel}"
     printf '  %sAPI:%s             %s/api/serversplitter/servers/{server}\n' "$C_BOLD" "$C_RESET" "${url:-https://tu-panel}"
+    printf '  %sEnlaces:%s         menú lateral del admin y pestaña «Divisiones» del servidor\n' "$C_BOLD" "$C_RESET"
     printf '\n  La API de integración responde 503 hasta que generes la clave:\n'
     printf '  %ssudo serversplitter apikey%s\n\n' "$C_BOLD" "$C_RESET"
 }
@@ -362,6 +378,10 @@ do_uninstall() {
         fi
     fi
 
+    info "Revirtiendo los parches de la interfaz…"
+    php "${SOURCE_DIR}/tools/patch-panel.php" unpatch "$PANEL_DIR" \
+        || warn "No se pudieron revertir todos los parches; revisa los bloques 'serversplitter:begin' en resources/views."
+
     info "Eliminando el service provider…"
     php "${SOURCE_DIR}/tools/register-provider.php" unregister "$PANEL_DIR" \
         || warn "No se pudo desregistrar el provider; revísalo a mano."
@@ -395,6 +415,7 @@ do_status() {
     printf '  Usuario web         : %s\n' "${WEB_USER:-desconocido}"
     printf '  Extensión           : %s\n' "$([ -d "${PANEL_DIR}/${TARGET_REL}" ] && echo presente || echo ausente)"
     printf '  Provider registrado : %s\n' "$(provider_registered && echo sí || echo no)"
+    printf '  Parches interfaz    : %s\n' "$(panel_patched && echo aplicados || echo 'no aplicados')"
     printf '  Repositorio         : %s\n' "${REPO_URL:-no configurado}"
     printf '  CLI                 : %s\n' "$([ -x "$CLI_PATH" ] && echo "$CLI_PATH" || echo 'no instalado')"
 

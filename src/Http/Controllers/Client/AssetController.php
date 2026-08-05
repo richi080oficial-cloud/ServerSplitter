@@ -18,6 +18,7 @@ class AssetController extends Controller
     protected const ALLOWED = [
         'serversplitter.css' => 'text/css; charset=utf-8',
         'serversplitter.js' => 'application/javascript; charset=utf-8',
+        'serversplitter-inject.js' => 'application/javascript; charset=utf-8',
     ];
 
     public function show(string $asset): BinaryFileResponse
