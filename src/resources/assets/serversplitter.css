@@ -1,0 +1,524 @@
+/* ServerSplitter - interfaz de cliente.
+   Tema oscuro coherente con Pterodactyl, responsive (>=320px) y accesible.
+   Se sirve mediante la ruta /extensions/serversplitter/serversplitter.css */
+
+:root {
+    --ss-bg: #0f1115;
+    --ss-bg-alt: #171b21;
+    --ss-card: #1c2128;
+    --ss-card-alt: #222831;
+    --ss-border: #2b323c;
+    --ss-text: #e6e9ee;
+    --ss-muted: #9aa4b2;
+    --ss-primary: #2e7dd7;
+    --ss-primary-hover: #3b8ff0;
+    --ss-danger: #d9534f;
+    --ss-danger-hover: #e8635f;
+    --ss-ok: #2f9e5f;
+    --ss-warn: #c8912a;
+    --ss-info: #2e7dd7;
+    --ss-focus: #7cc0ff;
+    --ss-radius: 8px;
+    --ss-gap: 16px;
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html {
+    -webkit-text-size-adjust: 100%;
+}
+
+body.ss-body {
+    margin: 0;
+    padding: 0;
+    background-color: var(--ss-bg);
+    color: var(--ss-text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.55;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.ss-container {
+    width: 100%;
+    max-width: 1080px;
+    margin-inline: auto;
+    padding-inline: 16px;
+}
+
+/* ---------- Accesibilidad ---------- */
+
+.ss-skip {
+    position: absolute;
+    inset-inline-start: -9999px;
+    top: 0;
+    background: var(--ss-primary);
+    color: #fff;
+    padding: 10px 16px;
+    border-radius: 0 0 var(--ss-radius) var(--ss-radius);
+    z-index: 50;
+}
+
+.ss-skip:focus {
+    inset-inline-start: 8px;
+    top: 8px;
+}
+
+.ss-visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+    outline: 2px solid var(--ss-focus);
+    outline-offset: 2px;
+}
+
+/* ---------- Cabecera y pie ---------- */
+
+.ss-header {
+    background: var(--ss-bg-alt);
+    border-bottom: 1px solid var(--ss-border);
+    padding-block: 12px;
+}
+
+.ss-header__inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.ss-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--ss-text);
+    font-size: 1.15rem;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.ss-brand__mark {
+    color: var(--ss-primary);
+    font-size: 1.3rem;
+    line-height: 1;
+}
+
+.ss-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 18px;
+}
+
+.ss-nav__link {
+    color: var(--ss-muted);
+    text-decoration: none;
+    padding-block: 4px;
+    border-bottom: 2px solid transparent;
+}
+
+.ss-nav__link:hover,
+.ss-nav__link:focus {
+    color: var(--ss-text);
+    border-bottom-color: var(--ss-primary);
+}
+
+.ss-footer {
+    margin-top: auto;
+    padding-block: 20px;
+    border-top: 1px solid var(--ss-border);
+    color: var(--ss-muted);
+    font-size: 0.85rem;
+}
+
+main.ss-container {
+    padding-block: 24px 40px;
+}
+
+/* ---------- Tipografia ---------- */
+
+.ss-title {
+    margin: 0 0 8px;
+    font-size: 1.6rem;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+}
+
+.ss-muted {
+    color: var(--ss-muted);
+}
+
+.ss-small {
+    font-size: 0.85rem;
+}
+
+/* ---------- Avisos ---------- */
+
+.ss-alert {
+    border: 1px solid var(--ss-border);
+    border-inline-start: 4px solid var(--ss-muted);
+    background: var(--ss-card);
+    border-radius: var(--ss-radius);
+    padding: 12px 14px;
+    margin-block: 0 var(--ss-gap);
+}
+
+.ss-alert--ok {
+    border-inline-start-color: var(--ss-ok);
+}
+
+.ss-alert--bad {
+    border-inline-start-color: var(--ss-danger);
+}
+
+.ss-alert--warn {
+    border-inline-start-color: var(--ss-warn);
+}
+
+.ss-alert--info {
+    border-inline-start-color: var(--ss-info);
+}
+
+.ss-alert__list {
+    margin: 0;
+    padding-inline-start: 20px;
+}
+
+/* ---------- Tarjetas ---------- */
+
+.ss-card {
+    background: var(--ss-card);
+    border: 1px solid var(--ss-border);
+    border-radius: var(--ss-radius);
+    padding: 18px;
+    margin-block-end: var(--ss-gap);
+}
+
+.ss-card__title {
+    margin: 0 0 12px;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.ss-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: var(--ss-gap);
+}
+
+.ss-grid .ss-card {
+    display: flex;
+    flex-direction: column;
+    margin-block-end: 0;
+}
+
+.ss-grid .ss-card .ss-btn {
+    margin-block-start: auto;
+}
+
+/* ---------- Estadisticas ---------- */
+
+.ss-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 12px;
+    margin: 0 0 14px;
+}
+
+.ss-stat {
+    background: var(--ss-card-alt);
+    border: 1px solid var(--ss-border);
+    border-radius: var(--ss-radius);
+    padding: 10px 12px;
+    min-width: 0;
+}
+
+.ss-stat dt {
+    color: var(--ss-muted);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.ss-stat dd {
+    margin: 2px 0 0;
+    font-size: 1.05rem;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+/* ---------- Botones ---------- */
+
+.ss-btn {
+    display: inline-block;
+    border: 1px solid transparent;
+    border-radius: var(--ss-radius);
+    background: var(--ss-card-alt);
+    color: var(--ss-text);
+    font: inherit;
+    font-weight: 600;
+    padding: 10px 16px;
+    text-align: center;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color 0.15s ease, opacity 0.15s ease;
+}
+
+.ss-btn:hover {
+    background: #2b333d;
+}
+
+.ss-btn--primary {
+    background: var(--ss-primary);
+    color: #fff;
+}
+
+.ss-btn--primary:hover {
+    background: var(--ss-primary-hover);
+}
+
+.ss-btn--danger {
+    background: var(--ss-danger);
+    color: #fff;
+}
+
+.ss-btn--danger:hover {
+    background: var(--ss-danger-hover);
+}
+
+.ss-btn--sm {
+    padding: 6px 10px;
+    font-size: 0.85rem;
+}
+
+.ss-btn[disabled],
+.ss-btn[aria-disabled="true"] {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+/* ---------- Formularios ---------- */
+
+.ss-fields {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: var(--ss-gap);
+    margin-block-end: var(--ss-gap);
+}
+
+.ss-field {
+    min-width: 0;
+}
+
+.ss-field--full {
+    grid-column: 1 / -1;
+}
+
+.ss-field label {
+    display: block;
+    margin-block-end: 6px;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.ss-field input,
+.ss-field select {
+    width: 100%;
+    background: var(--ss-bg-alt);
+    color: var(--ss-text);
+    border: 1px solid var(--ss-border);
+    border-radius: var(--ss-radius);
+    padding: 10px 12px;
+    font: inherit;
+}
+
+.ss-field input:disabled,
+.ss-field select:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.ss-field input[aria-invalid="true"] {
+    border-color: var(--ss-danger);
+}
+
+.ss-hint {
+    margin: 6px 0 0;
+    color: var(--ss-muted);
+    font-size: 0.82rem;
+}
+
+.ss-preview {
+    margin: 0 0 var(--ss-gap);
+    color: var(--ss-muted);
+    font-size: 0.9rem;
+    min-height: 1.4em;
+}
+
+.ss-preview--bad {
+    color: #f19a97;
+}
+
+/* ---------- Tablas ---------- */
+
+.ss-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.ss-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.92rem;
+}
+
+.ss-table th,
+.ss-table td {
+    padding: 10px 12px;
+    text-align: start;
+    border-bottom: 1px solid var(--ss-border);
+    vertical-align: middle;
+    overflow-wrap: anywhere;
+}
+
+.ss-table thead th {
+    color: var(--ss-muted);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+}
+
+.ss-table tbody tr:hover {
+    background: var(--ss-card-alt);
+}
+
+.ss-table__actions {
+    text-align: end;
+    white-space: nowrap;
+}
+
+.ss-table form {
+    display: inline;
+    margin: 0;
+}
+
+/* ---------- Movil: la tabla se convierte en fichas ---------- */
+
+@media (max-width: 640px) {
+    body.ss-body {
+        font-size: 14.5px;
+    }
+
+    .ss-title {
+        font-size: 1.35rem;
+    }
+
+    .ss-card {
+        padding: 14px;
+    }
+
+    .ss-table,
+    .ss-table tbody,
+    .ss-table tr,
+    .ss-table td {
+        display: block;
+        width: 100%;
+    }
+
+    .ss-table thead {
+        display: none;
+    }
+
+    .ss-table tr {
+        border: 1px solid var(--ss-border);
+        border-radius: var(--ss-radius);
+        margin-block-end: 10px;
+        background: var(--ss-card-alt);
+    }
+
+    .ss-table td {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        border-bottom: 1px solid var(--ss-border);
+    }
+
+    .ss-table tr td:last-child {
+        border-bottom: 0;
+    }
+
+    .ss-table td::before {
+        content: attr(data-label);
+        color: var(--ss-muted);
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        flex: 0 0 auto;
+    }
+
+    .ss-table__actions {
+        text-align: start;
+    }
+
+    .ss-btn {
+        width: 100%;
+    }
+
+    .ss-table .ss-btn {
+        width: auto;
+    }
+}
+
+/* ---------- Modo claro del sistema ---------- */
+
+@media (prefers-color-scheme: light) {
+    :root {
+        --ss-bg: #f4f6f9;
+        --ss-bg-alt: #ffffff;
+        --ss-card: #ffffff;
+        --ss-card-alt: #f0f3f7;
+        --ss-border: #d5dbe3;
+        --ss-text: #1d232b;
+        --ss-muted: #5c6673;
+    }
+
+    .ss-btn:hover {
+        background: #e4e9f0;
+    }
+
+    .ss-btn--primary:hover,
+    .ss-btn--danger:hover {
+        color: #fff;
+    }
+
+    .ss-preview--bad {
+        color: #a3312d;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ss-btn {
+        transition: none;
+    }
+}
