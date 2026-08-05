@@ -12,27 +12,60 @@ Al eliminar una division, los recursos vuelven al padre.
 ## Requisitos
 
 - Pterodactyl Panel 1.11.x (Laravel 10) o equivalente con el namespace `Pterodactyl\`.
-- PHP 8.1+ y acceso por consola al servidor del panel.
+- PHP 8.1+ y acceso por consola al servidor del panel como root.
+- `curl` y `git` (el gestor instala `git` automaticamente si falta).
 - Nodos con **allocations libres**: cada division consume un puerto del mismo nodo que el padre.
 
 ## Instalacion
 
-    chmod +x bin/serversplitter
-    sudo ./bin/serversplitter install --panel=/var/www/pterodactyl --user=www-data
-    sudo ./bin/serversplitter apikey        # genera la clave de la API de integracion
+Un solo comando, como root:
 
-El instalador copia `src/` a `app/Extensions/ServerSplitter`, registra el ServiceProvider
-(en `bootstrap/providers.php` o en el array `providers` de `config/app.php`, con copia de
-seguridad previa), limpia caches y ejecuta las migraciones.
+    bash <(curl -sSL https://raw.githubusercontent.com/richi080oficial-cloud/ServerSplitter/main/install.sh) install
 
-Actualizar tras cambiar el codigo:
+Despues genera la clave de la API de integracion (hasta entonces la API responde `503`):
 
-    sudo ./bin/serversplitter update
+    sudo serversplitter apikey
 
-Desinstalar (los servidores hijos ya creados **no** se borran):
+Que hace el instalador:
 
-    sudo ./bin/serversplitter uninstall              # solo archivos y provider
-    sudo ./bin/serversplitter uninstall --drop-data  # tambien borra las tablas
+1. `install.sh` descarga el gestor `serversplitter.sh` desde el repositorio.
+2. El gestor clona el codigo en `/opt/serversplitter` y ejecuta `scripts/addon-install.sh`.
+3. El instalador copia `src/` a `app/Extensions/ServerSplitter`, registra el ServiceProvider
+   (en `bootstrap/providers.php` o en el array `providers` de `config/app.php`, con copia de
+   seguridad previa), limpia caches y ejecuta las migraciones.
+4. Guarda el estado en `/usr/local/share/serversplitter` (panel, usuario web, repositorio,
+   version y una copia del codigo) e instala el comando corto `/usr/local/bin/serversplitter`.
+
+El namespace `Pterodactyl\Extensions\*` ya lo cubre el autoload del panel, asi que
+**no se modifica `composer.json`**.
+
+Si el panel no esta en una ruta estandar:
+
+    sudo serversplitter install --panel=/var/www/pterodactyl --user=www-data
+
+## Comandos
+
+| Comando | Descripcion |
+| --- | --- |
+| `sudo serversplitter install` | Instala o reinstala la extension |
+| `sudo serversplitter update` | Actualiza a la ultima version (no hace nada si ya esta al dia) |
+| `sudo serversplitter update --force` | Reinstala aunque no haya cambios en el repositorio |
+| `sudo serversplitter status` | Estado de la instalacion, provider, CLI y auto-update |
+| `sudo serversplitter version` | Version descargada |
+| `sudo serversplitter apikey` | Genera la clave de la API (`--key=CLAVE` para fijar una) |
+| `sudo serversplitter info` | Configuracion y contadores actuales |
+| `sudo serversplitter prune` | Limpia cache y bloqueos caducados |
+| `sudo serversplitter autoupdate-on` | Actualizacion automatica diaria a las 04:00 |
+| `sudo serversplitter autoupdate-off` | Cancela la actualizacion automatica |
+| `sudo serversplitter uninstall` | Desinstala archivos y provider (conserva las tablas) |
+| `sudo serversplitter uninstall --drop-data` | Desinstala y **borra las tablas** de la extension |
+
+Opciones comunes: `--force`/`-y` (sin confirmacion), `--panel=RUTA`, `--user=USUARIO`, `--key=CLAVE`.
+Variables de entorno equivalentes: `PANEL_DIR`, `WEB_USER`, `REPO_URL`, `REPO_BRANCH`, `SRC_DIR`.
+
+El registro del auto-update se escribe en `/var/log/serversplitter-update.log`.
+
+Al desinstalar, los servidores hijos ya creados **no** se borran: gestionalos desde el panel.
 
 ## Modos de redimensionado
 
@@ -92,7 +125,9 @@ Endpoints disponibles:
 | POST | `/api/serversplitter/servers/{server}/purge` | Elimina todas las divisiones |
 | DELETE | `/api/serversplitter/servers/{server}/splits/{split}` | Elimina una division concreta |
 
-## Consola
+## Consola del panel
+
+Equivalentes directos por si prefieres usar artisan (desde el directorio del panel):
 
     php artisan serversplitter:manage info     # estado y contadores
     php artisan serversplitter:manage apikey   # nueva clave de API
@@ -102,7 +137,11 @@ Endpoints disponibles:
 ## Estructura
 
     extension.json
-    bin/serversplitter                 Instalador / CLI
+    VERSION                            Version del paquete
+    install.sh                         Instalador publico (descarga el gestor)
+    serversplitter.sh                  Gestor: install / update / uninstall / autoupdate
+    scripts/addon-install.sh           Instalador interno (copia, provider, migraciones)
+    bin/serversplitter                 Comando corto: delega en el gestor
     tools/register-provider.php        Registro del ServiceProvider en el panel
     src/config/serversplitter.php      Valores por defecto
     src/database/migrations/           Tablas de la extension
@@ -113,6 +152,12 @@ Endpoints disponibles:
     src/resources/views/               Blade de admin y de cliente
     src/resources/assets/              CSS y JS (servidos por AssetController)
     src/Console/Commands/              Comando artisan
+
+Rutas que se crean en el sistema:
+
+    /opt/serversplitter                Codigo fuente clonado (lo mantiene el gestor)
+    /usr/local/share/serversplitter    Estado, copia del codigo y backups
+    /usr/local/bin/serversplitter      Comando global
 
 El CSS y el JS se sirven desde la propia extension en `/extensions/serversplitter/*`,
 por lo que **no hay que copiar nada a `public/`** ni repetirlo tras actualizar el panel.
