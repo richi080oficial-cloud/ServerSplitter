@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # ServerSplitter — gestor (instalar / actualizar / desinstalar / estado)
-# Autor: Xalvik · Licencia: MIT
+# Autor: Waise Team · Licencia: MIT
 #
 #   bash <(curl -sSL .../install.sh) install
 #   sudo serversplitter update

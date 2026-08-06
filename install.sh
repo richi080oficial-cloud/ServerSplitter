@@ -5,7 +5,7 @@
 #
 #   bash <(curl -sSL https://raw.githubusercontent.com/waise-team/ServerSplitter/main/install.sh) install
 #
-# Autor: Xalvik · Licencia: MIT
+# Autor: Waise Team · Licencia: MIT
 #
 set -Eeuo pipefail
 
