@@ -6,6 +6,7 @@ use Illuminate\Support\ServiceProvider;
 use Pterodactyl\Extensions\ServerSplitter\Console\Commands\SplitterCommand;
 use Pterodactyl\Extensions\ServerSplitter\Http\Middleware\AdminServerLimits;
 use Pterodactyl\Extensions\ServerSplitter\Http\Middleware\AdminSidebarLink;
+use Pterodactyl\Extensions\ServerSplitter\Http\Middleware\ClientPanelScript;
 use Pterodactyl\Extensions\ServerSplitter\Services\LockManager;
 use Pterodactyl\Extensions\ServerSplitter\Services\ResourceCalculator;
 
@@ -40,6 +41,10 @@ class ServerSplitterServiceProvider extends ServiceProvider
         // la vista layouts/admin.blade.php no este aplicado (temas de
         // terceros, actualizaciones del panel...). Ver AdminSidebarLink.
         $router->pushMiddlewareToGroup('web', AdminSidebarLink::class);
+
+        // Carga el script que anade la pestana "Divisiones" a la navegacion del
+        // servidor en el panel de cliente (SPA de React). Ver ClientPanelScript.
+        $router->pushMiddlewareToGroup('web', ClientPanelScript::class);
 
         if ($this->app->runningInConsole()) {
             $this->commands([SplitterCommand::class]);
