@@ -22,6 +22,7 @@ Route::middleware(['web', 'auth'])
     ->name('serversplitter.')
     ->group(function () {
         Route::get('/', [SplitterController::class, 'index'])->name('index');
+        Route::get('/{server}/availability', [SplitterController::class, 'availability'])->name('availability');
         Route::get('/{server}', [SplitterController::class, 'show'])->name('show');
         Route::post('/{server}/splits', [SplitterController::class, 'store'])->name('store');
         Route::delete('/{server}/splits/{split}', [SplitterController::class, 'destroy'])->name('destroy');

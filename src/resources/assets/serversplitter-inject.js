@@ -26,6 +26,14 @@
 
     var pending = false;
 
+    /**
+     * Cache por servidor del resultado de /serversplitter/<id>/availability:
+     * true (mostrar), false (ocultar) o 'pending' mientras se resuelve. Solo se
+     * consulta una vez por servidor y por carga de pagina.
+     */
+    var availability = {};
+    var links = {};
+
     /** Identificador corto del servidor abierto, o null si no estamos en uno. */
     function currentIdentifier() {
         var match = SERVER_PATH.exec(window.location.pathname);
@@ -67,6 +75,50 @@
         }
     }
 
+    /**
+     * true solo si el usuario autenticado es el propietario del servidor y ese
+     * servidor puede dividirse (no es una division). El backend decide; aqui no
+     * se duplica ninguna regla de permisos.
+     */
+    function isAvailable(identifier) {
+        if (Object.prototype.hasOwnProperty.call(availability, identifier)) {
+            return availability[identifier];
+        }
+
+        if (typeof window.fetch !== 'function') {
+            availability[identifier] = false;
+
+            return false;
+        }
+
+        availability[identifier] = 'pending';
+
+        window.fetch('/serversplitter/' + encodeURIComponent(identifier) + '/availability', {
+            credentials: 'same-origin',
+            headers: { Accept: 'application/json' }
+        }).then(function (response) {
+            if (!response.ok) {
+                throw new Error('HTTP ' + response.status);
+            }
+
+            return response.json();
+        }).then(function (payload) {
+            availability[identifier] = !!(payload && payload.available);
+
+            if (payload && typeof payload.url === 'string' && payload.url !== '') {
+                links[identifier] = payload.url;
+            }
+
+            schedule();
+        }).catch(function () {
+            // Sesion caducada, extension desinstalada o red caida: no se
+            // inyecta nada y el panel sigue funcionando igual.
+            availability[identifier] = false;
+        });
+
+        return 'pending';
+    }
+
     function apply() {
         pending = false;
 
@@ -74,6 +126,12 @@
         var existing = document.querySelector('[' + ATTR + ']');
 
         if (identifier === null) {
+            detach(existing);
+
+            return;
+        }
+
+        if (isAvailable(identifier) !== true) {
             detach(existing);
 
             return;
@@ -96,7 +154,7 @@
         var link = document.createElement('a');
         link.setAttribute(ATTR, identifier);
         link.className = baseClassName(target.sample);
-        link.href = '/serversplitter/' + identifier;
+        link.href = links[identifier] || '/serversplitter/' + identifier;
         link.textContent = LABEL;
 
         target.container.appendChild(link);

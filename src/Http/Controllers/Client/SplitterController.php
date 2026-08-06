@@ -2,6 +2,7 @@
 
 namespace Pterodactyl\Extensions\ServerSplitter\Http\Controllers\Client;
 
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Routing\Controller;
@@ -25,10 +26,9 @@ class SplitterController extends Controller
     {
         $user = $this->user();
 
-        $query = Server::query()->orderBy('name');
-        if (!$user->root_admin) {
-            $query->where('owner_id', $user->id);
-        }
+        // Dividir es exclusivo del propietario: los administradores gestionan
+        // las divisiones desde /admin/serversplitter, no desde el area cliente.
+        $query = Server::query()->where('owner_id', $user->id)->orderBy('name');
 
         $servers = $query->limit(200)->get()->reject(fn (Server $s) => $this->splitter->isChild($s))->values();
 
@@ -43,11 +43,59 @@ class SplitterController extends Controller
     {
         $parent = $this->resolveServer($server);
 
+        // Una division no se gestiona desde ella misma: se deshace desde el
+        // servidor principal del que salio o desde el panel de administracion.
+        if ($this->splitter->isChild($parent)) {
+            $split = ServerSplit::query()->with('parent')->where('server_id', $parent->id)->first();
+            $origin = $split?->parent;
+
+            return view('serversplitter::client.child', [
+                'server' => $parent,
+                'origin' => $origin,
+                'ownsOrigin' => $origin !== null && (int) $origin->owner_id === (int) $this->user()->id,
+            ]);
+        }
+
         return view('serversplitter::client.index', [
             'server' => $parent,
             'state' => $this->splitter->state($parent),
             'settings' => $this->splitter->settings(),
             'eggs' => $this->splitter->availableEggs(),
+        ]);
+    }
+
+    /**
+     * Consulta ligera que usa el script inyectado en el panel de cliente para
+     * decidir si muestra la pestana "Divisiones" en un servidor concreto.
+     *
+     * Devuelve siempre 200 con available=false en lugar de 403/404 para no
+     * llenar la consola del navegador de errores en servidores ajenos.
+     */
+    public function availability(string $server): JsonResponse
+    {
+        $model = Server::query()
+            ->where('uuidShort', $server)
+            ->orWhere('uuid', $server)
+            ->first();
+
+        $user = $this->user();
+        $available = false;
+
+        if ($model !== null
+            && (int) $model->owner_id === (int) $user->id
+            && !$this->splitter->isChild($model)
+        ) {
+            // Si la extension esta desactivada, el propietario sigue viendo la
+            // pestana mientras tenga divisiones vivas que poder eliminar.
+            $available = (bool) $this->splitter->settings()['enabled']
+                || $this->splitter->children($model)->isNotEmpty();
+        }
+
+        return new JsonResponse([
+            'available' => $available,
+            'url' => $available && $model !== null
+                ? route('serversplitter.show', $model->uuidShort)
+                : null,
         ]);
     }
 
@@ -131,8 +179,10 @@ class SplitterController extends Controller
 
         abort_if($server === null, 404);
 
+        // Solo el propietario. Un subusuario con acceso al servidor en el panel
+        // no puede dividirlo ni deshacer divisiones.
         $user = $this->user();
-        abort_unless($user->root_admin || $server->owner_id === $user->id, 403);
+        abort_unless((int) $server->owner_id === (int) $user->id, 403);
 
         return $server;
     }
