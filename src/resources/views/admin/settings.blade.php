@@ -75,6 +75,56 @@
             color: inherit;
         }
 
+        /* Campos y tablas: AdminLTE los pinta en blanco fijo. Se dejan
+           translucidos para que funcionen sobre fondo claro y oscuro. */
+        .ss-admin .form-control,
+        .ss-admin .input-group-addon,
+        .ss-admin select.form-control {
+            background-color: rgba(127, 127, 127, 0.12);
+            border-color: rgba(127, 127, 127, 0.32);
+            color: inherit;
+        }
+
+        .ss-admin .form-control:focus {
+            border-color: rgba(60, 141, 188, 0.75);
+            box-shadow: none;
+        }
+
+        .ss-admin .form-control::placeholder {
+            color: inherit;
+            opacity: 0.55;
+        }
+
+        .ss-admin .table,
+        .ss-admin .table > thead > tr > th,
+        .ss-admin .table > tbody > tr > td {
+            background-color: transparent;
+            border-color: rgba(127, 127, 127, 0.25);
+            color: inherit;
+        }
+
+        .ss-admin .table-hover > tbody > tr:hover > td {
+            background-color: rgba(127, 127, 127, 0.12);
+        }
+
+        /* Desbordamiento en moviles: las tablas anchas hacen scroll en vez de
+           romper el layout del panel. */
+        .ss-admin .table-responsive {
+            border: 0;
+        }
+
+        @media (max-width: 640px) {
+            .ss-admin .nav-tabs-custom > .nav-tabs > li {
+                float: none;
+                display: block;
+            }
+
+            .ss-admin .box-footer .btn {
+                width: 100%;
+                margin-bottom: 8px;
+            }
+        }
+
         /* ---- Pestanas ---- */
 
         .ss-admin .nav-tabs-custom > .nav-tabs {

@@ -5,6 +5,7 @@ namespace Pterodactyl\Extensions\ServerSplitter\Providers;
 use Illuminate\Support\ServiceProvider;
 use Pterodactyl\Extensions\ServerSplitter\Console\Commands\SplitterCommand;
 use Pterodactyl\Extensions\ServerSplitter\Http\Middleware\AdminServerLimits;
+use Pterodactyl\Extensions\ServerSplitter\Http\Middleware\AdminSidebarLink;
 use Pterodactyl\Extensions\ServerSplitter\Services\LockManager;
 use Pterodactyl\Extensions\ServerSplitter\Services\ResourceCalculator;
 
@@ -29,9 +30,16 @@ class ServerSplitterServiceProvider extends ServiceProvider
         $this->loadRoutesFrom(__DIR__ . '/../routes/web.php');
         $this->loadRoutesFrom(__DIR__ . '/../routes/api.php');
 
+        $router = $this->app->make('router');
+
         // Recoge los limites de division enviados desde las pantallas de
         // administracion de servidores del panel (ver AdminServerLimits).
-        $this->app->make('router')->pushMiddlewareToGroup('web', AdminServerLimits::class);
+        $router->pushMiddlewareToGroup('web', AdminServerLimits::class);
+
+        // Garantiza el enlace del menu lateral del admin aunque el parche de
+        // la vista layouts/admin.blade.php no este aplicado (temas de
+        // terceros, actualizaciones del panel...). Ver AdminSidebarLink.
+        $router->pushMiddlewareToGroup('web', AdminSidebarLink::class);
 
         if ($this->app->runningInConsole()) {
             $this->commands([SplitterCommand::class]);

@@ -142,10 +142,14 @@ function insertSidebarEntry(string $contents): ?string
     $indent = indentOfLineAt($contents, $close);
     $inner = $indent . '    ';
 
+    // Solo clases de AdminLTE: la entrada hereda el skin activo (claro, oscuro
+    // o tema de terceros) sin colores propios que puedan quedar ilegibles.
+    // El href usa Route::has() para no romper /admin con una
+    // RouteNotFoundException si el provider aun no esta registrado.
     $block = wrap($indent, [
         $inner . '<li class="header">SERVERSPLITTER</li>',
-        $inner . '<li class="{{ \Illuminate\Support\Str::startsWith((string) \Illuminate\Support\Facades\Route::currentRouteName(), \'admin.serversplitter\') ? \'active\' : \'\' }}">',
-        $inner . '    <a href="{{ route(\'admin.serversplitter.index\') }}">',
+        $inner . '<li class="{{ request()->is(\'admin/serversplitter\', \'admin/serversplitter/*\') ? \'active\' : \'\' }}">',
+        $inner . '    <a href="{{ \Illuminate\Support\Facades\Route::has(\'admin.serversplitter.index\') ? route(\'admin.serversplitter.index\') : url(\'/admin/serversplitter\') }}">',
         $inner . '        <i class="fa fa-clone"></i> <span>ServerSplitter</span>',
         $inner . '    </a>',
         $inner . '</li>',
@@ -249,46 +253,60 @@ function removeBlocks(string $contents): string
 // Utilidades de texto
 // ---------------------------------------------------------------------------
 
-/** Posicion del </ul> que cierra el menu lateral del admin. */
+/**
+ * Posicion del </ul> que cierra el menu lateral del admin.
+ *
+ * La apertura se localiza por el atributo class (sidebar-menu) y el cierre
+ * contando aperturas/cierres de <ul> con una sola pasada de regex. Asi tolera
+ * submenus (treeview-menu), atributos extra, etiquetas partidas en varias
+ * lineas y temas que mencionen "sidebar-menu" antes en el layout (CSS o JS).
+ */
 function findSidebarClose(string $contents): ?int
 {
-    $at = strpos($contents, 'sidebar-menu');
+    $after = null;
 
-    if ($at === false) {
+    if (preg_match('/<ul\b[^>]*\bsidebar-menu\b[^>]*>/is', $contents, $m, PREG_OFFSET_CAPTURE) === 1) {
+        $after = (int) $m[0][1] + strlen((string) $m[0][0]);
+    } elseif (preg_match('/<section\b[^>]*\bclass\s*=\s*(["\'])[^"\']*\bsidebar\b[^"\']*\1[^>]*>/is', $contents, $s, PREG_OFFSET_CAPTURE) === 1) {
+        // Plan B: temas que renombran la clase del <ul>. Se usa el primer
+        // <ul> que aparece dentro de <section class="sidebar">.
+        $sectionEnd = (int) $s[0][1] + strlen((string) $s[0][0]);
+
+        if (preg_match('/<ul\b[^>]*>/is', $contents, $u, PREG_OFFSET_CAPTURE, $sectionEnd) === 1) {
+            $after = (int) $u[0][1] + strlen((string) $u[0][0]);
+        }
+    }
+
+    if ($after === null) {
         return null;
     }
 
-    $open = strrpos(substr($contents, 0, $at), '<ul');
+    $found = preg_match_all(
+        '/<\/?ul\b[^>]*>/is',
+        $contents,
+        $tags,
+        PREG_PATTERN_ORDER | PREG_OFFSET_CAPTURE,
+        $after
+    );
 
-    if ($open === false) {
+    if ($found === false || $found === 0) {
         return null;
     }
 
-    $depth = 0;
-    $length = strlen($contents);
+    $depth = 1;
 
-    for ($i = $open; $i < $length; $i++) {
-        if ($contents[$i] !== '<') {
-            continue;
-        }
-
-        $head = strtolower(substr($contents, $i, 5));
-
-        if ($head === '<ul>' . "\n" || str_starts_with($head, '<ul>') || str_starts_with($head, '<ul ')) {
-            $depth++;
-            $i += 2;
-            continue;
-        }
-
-        if ($head === '</ul>') {
+    foreach ($tags[0] as $tag) {
+        if (str_starts_with((string) $tag[0], '</')) {
             $depth--;
 
-            if ($depth <= 0) {
-                return $i;
+            if ($depth === 0) {
+                return (int) $tag[1];
             }
 
-            $i += 4;
+            continue;
         }
+
+        $depth++;
     }
 
     return null;
