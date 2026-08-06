@@ -13,6 +13,145 @@
 @endsection
 
 @section('content')
+    <style>
+        /* El panel de administracion de Pterodactyl (AdminLTE) fuerza cajas blancas.
+           Aqui se neutraliza ese blanco: los contenedores pasan a ser transparentes
+           (heredan el fondo real del tema activo) y los bordes/rellenos usan grises
+           translucidos, de modo que la pagina funciona igual en tema claro y oscuro
+           sin fijar ningun color de fondo propio. */
+        .ss-admin,
+        .ss-admin .box-title,
+        .ss-admin .box-body,
+        .ss-admin .box-footer,
+        .ss-admin label,
+        .ss-admin h4 {
+            color: inherit;
+        }
+
+        .ss-admin .nav-tabs-custom,
+        .ss-admin .nav-tabs-custom > .tab-content,
+        .ss-admin .box,
+        .ss-admin .box-header,
+        .ss-admin .box-body,
+        .ss-admin .box-footer {
+            background-color: transparent;
+            box-shadow: none;
+        }
+
+        .ss-admin .box {
+            border: 1px solid rgba(127, 127, 127, 0.28);
+            border-top-width: 3px;
+            border-radius: 4px;
+        }
+
+        .ss-admin .box.box-primary {
+            border-top-color: #3c8dbc;
+        }
+
+        .ss-admin .box.box-warning {
+            border-top-color: #f39c12;
+        }
+
+        .ss-admin .box.box-default {
+            border-top-color: rgba(127, 127, 127, 0.45);
+        }
+
+        .ss-admin .box-header.with-border,
+        .ss-admin .box-footer {
+            border-color: rgba(127, 127, 127, 0.25);
+        }
+
+        .ss-admin hr {
+            border-top-color: rgba(127, 127, 127, 0.25);
+        }
+
+        .ss-admin .text-muted {
+            color: inherit;
+            opacity: 0.72;
+        }
+
+        .ss-admin code {
+            background-color: rgba(127, 127, 127, 0.18);
+            color: inherit;
+        }
+
+        /* ---- Pestanas ---- */
+
+        .ss-admin .nav-tabs-custom > .nav-tabs {
+            border-bottom-color: rgba(127, 127, 127, 0.28);
+        }
+
+        .ss-admin .nav-tabs-custom > .nav-tabs > li > a,
+        .ss-admin .nav-tabs-custom > .nav-tabs > li.active > a {
+            background-color: transparent;
+            color: inherit;
+            border-left-color: rgba(127, 127, 127, 0.2);
+            border-right-color: rgba(127, 127, 127, 0.2);
+        }
+
+        .ss-admin .nav-tabs-custom > .nav-tabs > li:not(.active) > a {
+            opacity: 0.72;
+        }
+
+        .ss-admin .nav-tabs-custom > .nav-tabs > li:not(.active) > a:hover,
+        .ss-admin .nav-tabs-custom > .nav-tabs > li:not(.active) > a:focus {
+            background-color: rgba(127, 127, 127, 0.1);
+            opacity: 1;
+        }
+
+        .ss-admin .nav-tabs-custom > .nav-tabs > li.active > a {
+            background-color: rgba(127, 127, 127, 0.14);
+        }
+
+        /* ---- Formularios ---- */
+
+        .ss-admin .form-control {
+            background-color: rgba(127, 127, 127, 0.14);
+            border-color: rgba(127, 127, 127, 0.35);
+            color: inherit;
+            box-shadow: none;
+        }
+
+        .ss-admin .form-control:focus {
+            border-color: #3c8dbc;
+            box-shadow: none;
+        }
+
+        .ss-admin .form-control::placeholder {
+            color: inherit;
+            opacity: 0.55;
+        }
+
+        .ss-admin a:focus-visible,
+        .ss-admin button:focus-visible,
+        .ss-admin input:focus-visible,
+        .ss-admin select:focus-visible {
+            outline: 2px solid #7cc0ff;
+            outline-offset: 2px;
+        }
+
+        /* ---- Tablas ---- */
+
+        .ss-admin .table > thead > tr > th,
+        .ss-admin .table > tbody > tr > td {
+            border-color: rgba(127, 127, 127, 0.25);
+            color: inherit;
+        }
+
+        .ss-admin .table-hover > tbody > tr:hover {
+            background-color: rgba(127, 127, 127, 0.12);
+        }
+
+        @media (max-width: 640px) {
+            .ss-admin .box-footer .btn.pull-right,
+            .ss-admin .box-footer > .btn {
+                float: none !important;
+                width: 100%;
+            }
+        }
+    </style>
+
+    <div class="ss-admin">
     @if (session('serversplitter:success'))
         <div class="alert alert-success">{{ session('serversplitter:success') }}</div>
     @endif
@@ -165,26 +304,8 @@
                                         <div class="col-xs-12 col-sm-6">
                                             <div class="checkbox">
                                                 <label>
-                                                    <input type="checkbox" name="allow_disk" value="1" @checked($settings['allow_disk'])>
-                                                    Permitir elegir disco
-                                                </label>
-                                            </div>
-                                            <div class="checkbox">
-                                                <label>
-                                                    <input type="checkbox" name="allow_cpu" value="1" @checked($settings['allow_cpu'])>
-                                                    Permitir elegir CPU
-                                                </label>
-                                            </div>
-                                            <div class="checkbox">
-                                                <label>
                                                     <input type="checkbox" name="allow_unlisted_eggs" value="1" @checked($settings['allow_unlisted_eggs'])>
                                                     Permitir eggs sin regla definida
-                                                </label>
-                                            </div>
-                                            <div class="checkbox">
-                                                <label>
-                                                    <input type="checkbox" name="allow_child_deletion" value="1" @checked($settings['allow_child_deletion'])>
-                                                    Permitir que el cliente borre sus divisiones
                                                 </label>
                                             </div>
                                         </div>
@@ -479,6 +600,7 @@
                 </div>
             </div>
         </div>
+    </div>
     </div>
 @endsection
 

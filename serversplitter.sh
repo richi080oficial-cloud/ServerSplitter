@@ -10,7 +10,7 @@
 #
 set -Eeuo pipefail
 
-REPO_URL="${REPO_URL:-${SERVERSPLITTER_REPO:-https://github.com/richi080oficial-cloud/ServerSplitter.git}}"
+REPO_URL="${REPO_URL:-${SERVERSPLITTER_REPO:-https://github.com/waise-team/ServerSplitter.git}}"
 REPO_BRANCH="${REPO_BRANCH:-main}"
 SRC_DIR="${SRC_DIR:-/opt/serversplitter}"
 INSTALLER_REL="scripts/addon-install.sh"
@@ -105,7 +105,9 @@ sync_sources() {
 
     # Normalizar saltos de línea por si el repo se editó desde Windows.
     find "$SRC_DIR" -name '*.sh' -print0 | xargs -0 -r sed -i 's/\r$//'
-    [[ -f "$SRC_DIR/bin/serversplitter" ]] && sed -i 's/\r$//' "$SRC_DIR/bin/serversplitter"
+    if [[ -f "$SRC_DIR/bin/serversplitter" ]]; then
+        sed -i 's/\r$//' "$SRC_DIR/bin/serversplitter"
+    fi
     chmod +x "$SRC_DIR"/*.sh 2>/dev/null || true
     chmod +x "$SRC_DIR/scripts"/*.sh 2>/dev/null || true
     chmod +x "$SRC_DIR/bin/serversplitter" 2>/dev/null || true

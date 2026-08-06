@@ -1,5 +1,7 @@
 # ServerSplitter para Pterodactyl
 
+Autor: **Waise Team**
+
 Permite que un cliente **divida su servidor** en servidores hijos: se crea un servidor nuevo
 con parte de los recursos del principal y el padre se redimensiona automaticamente.
 Al eliminar una division, los recursos vuelven al padre.
@@ -20,7 +22,7 @@ Al eliminar una division, los recursos vuelven al padre.
 
 Un solo comando, como root:
 
-    bash <(curl -sSL https://raw.githubusercontent.com/richi080oficial-cloud/ServerSplitter/main/install.sh) install
+    bash <(curl -sSL https://raw.githubusercontent.com/waise-team/ServerSplitter/main/install.sh) install
 
 Despues genera la clave de la API de integracion (hasta entonces la API responde `503`):
 

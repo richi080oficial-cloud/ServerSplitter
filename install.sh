@@ -3,7 +3,7 @@
 # ServerSplitter — instalador público
 # Descarga el gestor (serversplitter.sh) desde el repositorio y lo ejecuta.
 #
-#   bash <(curl -sSL https://raw.githubusercontent.com/richi080oficial-cloud/ServerSplitter/main/install.sh) install
+#   bash <(curl -sSL https://raw.githubusercontent.com/waise-team/ServerSplitter/main/install.sh) install
 #
 # Autor: Xalvik · Licencia: MIT
 #
@@ -11,7 +11,7 @@ set -Eeuo pipefail
 
 # ── Configuración ─────────────────────────────────────────────────────────────
 # Repositorio público: no se necesita ninguna credencial.
-_OWNER="${REPO_OWNER:-richi080oficial-cloud}"
+_OWNER="${REPO_OWNER:-waise-team}"
 _REPO="${REPO_NAME:-ServerSplitter}"
 _BRANCH="${REPO_BRANCH:-main}"
 _FILE="serversplitter.sh"

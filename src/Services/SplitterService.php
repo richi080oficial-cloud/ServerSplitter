@@ -3,7 +3,6 @@
 namespace Pterodactyl\Extensions\ServerSplitter\Services;
 
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Collection;
 use Pterodactyl\Models\Egg;
@@ -247,12 +246,8 @@ class SplitterService
             $settings = $this->settings();
 
             if (!$adminOverride) {
+                // El propietario siempre puede eliminar sus propias divisiones.
                 $this->assertEnabled($settings);
-
-                if (!$settings['allow_child_deletion']) {
-                    throw new SplitterException('El administrador ha desactivado la eliminacion de divisiones.');
-                }
-
                 $this->assertUsable($parent);
             }
 
@@ -472,12 +467,14 @@ class SplitterService
     {
         $memory = (int) ($data['memory'] ?? 0);
 
-        $disk = $settings['allow_disk']
-            ? (int) ($data['disk'] ?? 0)
+        // El cliente siempre puede elegir disco y CPU; si no envia valor se usa
+        // el minimo de la regla del egg y, en su defecto, el minimo global.
+        $disk = isset($data['disk']) && $data['disk'] !== ''
+            ? (int) $data['disk']
             : (int) ($rule?->min_disk ?: $settings['min_disk']);
 
-        $cpu = $settings['allow_cpu']
-            ? (int) ($data['cpu'] ?? 0)
+        $cpu = isset($data['cpu']) && $data['cpu'] !== ''
+            ? (int) $data['cpu']
             : (int) ($rule?->min_cpu ?: $settings['min_cpu']);
 
         return ['memory' => $memory, 'disk' => $disk, 'cpu' => $cpu];

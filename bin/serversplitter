@@ -28,5 +28,5 @@ fi
 
 echo "[serversplitter] No se encontró el gestor en ${MANAGER} ni el instalador en ${INSTALLER}." >&2
 echo "[serversplitter] Reinstala con:" >&2
-echo "  bash <(curl -sSL https://raw.githubusercontent.com/richi080oficial-cloud/ServerSplitter/main/install.sh) install" >&2
+echo "  bash <(curl -sSL https://raw.githubusercontent.com/waise-team/ServerSplitter/main/install.sh) install" >&2
 exit 1

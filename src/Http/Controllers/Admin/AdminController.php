@@ -50,10 +50,7 @@ class AdminController extends Controller
         ]);
 
         $data['enabled'] = $request->boolean('enabled');
-        $data['allow_disk'] = $request->boolean('allow_disk');
-        $data['allow_cpu'] = $request->boolean('allow_cpu');
         $data['allow_unlisted_eggs'] = $request->boolean('allow_unlisted_eggs');
-        $data['allow_child_deletion'] = $request->boolean('allow_child_deletion');
 
         SplitterSetting::write($data);
 

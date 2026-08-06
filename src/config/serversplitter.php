@@ -24,10 +24,6 @@ return [
         // Accion sobre el servidor padre al aplicar cambios: none | restart | stop | kill
         'power_action' => 'restart',
 
-        // Permitir que el usuario elija disco / cpu para el hijo.
-        'allow_disk' => true,
-        'allow_cpu' => true,
-
         // Minimos que debe recibir un servidor hijo.
         'min_memory' => 512,   // MiB
         'min_disk' => 1024,    // MiB
@@ -40,9 +36,6 @@ return [
 
         // Si es false, solo se pueden usar eggs con una regla explicita "permitido".
         'allow_unlisted_eggs' => false,
-
-        // Permitir que el propietario elimine sus propias divisiones.
-        'allow_child_deletion' => true,
 
         // Prefijo del nombre generado para los servidores hijos.
         'child_name_prefix' => 'split',

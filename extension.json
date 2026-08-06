@@ -3,7 +3,7 @@
   "identifier": "serversplitter",
   "version": "1.0.0",
   "description": "Divide servidores de Pterodactyl en varios servidores hijos de forma segura, con bloqueos, reglas de eggs, limites minimos e integracion con WHMCS y Paymenter.",
-  "author": "NoTokenLimit",
+  "author": "Waise Team",
   "target": {
     "panel": ">=1.11.0 <2.0.0",
     "php": ">=8.1",

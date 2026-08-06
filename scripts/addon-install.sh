@@ -30,7 +30,7 @@ MIN_PANEL_VERSION="1.11.0"
 
 PANEL_DIR="${PANEL_DIR:-}"
 WEB_USER="${WEB_USER:-}"
-REPO_URL="${SERVERSPLITTER_REPO:-https://github.com/richi080oficial-cloud/ServerSplitter.git}"
+REPO_URL="${SERVERSPLITTER_REPO:-https://github.com/waise-team/ServerSplitter.git}"
 ASSUME_YES="no"
 DROP_DATA="no"
 API_KEY=""
@@ -100,6 +100,28 @@ detect_panel() {
     done
 
     die "No se pudo localizar el panel. Ejecuta: sudo PANEL_DIR=/ruta/al/panel bash scripts/addon-install.sh install"
+}
+
+# Igual que detect_panel pero sin abortar: deja PANEL_DIR vacío y devuelve 1
+# si no encuentra el panel. Se usa en 'status', que debe informar sin morir.
+detect_panel_soft() {
+    load_state
+
+    if [ -n "$PANEL_DIR" ] && [ -f "${PANEL_DIR%/}/artisan" ]; then
+        PANEL_DIR="${PANEL_DIR%/}"
+        return 0
+    fi
+
+    local dir
+    for dir in "/var/www/pterodactyl" "/var/www/panel" "/var/www/html/pterodactyl" "/srv/pterodactyl"; do
+        if [ -f "${dir}/artisan" ] && [ -f "${dir}/config/app.php" ]; then
+            PANEL_DIR="$dir"
+            return 0
+        fi
+    done
+
+    PANEL_DIR=""
+    return 1
 }
 
 detect_web_user() {
@@ -405,8 +427,10 @@ do_uninstall() {
 
 do_status() {
     load_state
-    detect_panel || true
-    detect_web_user || true
+    detect_panel_soft || true
+    if [ -n "$PANEL_DIR" ]; then
+        detect_web_user || true
+    fi
 
     printf '%sServerSplitter%s\n' "$C_BOLD" "$C_RESET"
     printf '  Versión del paquete : %s\n' "$ADDON_VERSION"

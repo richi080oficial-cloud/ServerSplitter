@@ -76,17 +76,13 @@
                             <td data-label="Disco">{{ $split['disk'] }} MiB</td>
                             <td data-label="CPU">{{ $split['cpu'] }} %</td>
                             <td data-label="Acciones" class="ss-table__actions">
-                                @if ($settings['allow_child_deletion'])
-                                    <form method="POST"
-                                          action="{{ route('serversplitter.destroy', ['server' => $server->uuidShort, 'split' => $split['id']]) }}"
-                                          data-confirm="Se eliminara el servidor «{{ $split['name'] }}» y todos sus archivos. Esta accion no se puede deshacer. Continuar?">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="ss-btn ss-btn--danger ss-btn--sm">Eliminar</button>
-                                    </form>
-                                @else
-                                    <span class="ss-muted ss-small">Contacta con soporte</span>
-                                @endif
+                                <form method="POST"
+                                      action="{{ route('serversplitter.destroy', ['server' => $server->uuidShort, 'split' => $split['id']]) }}"
+                                      data-confirm="Se eliminara el servidor «{{ $split['name'] }}» y todos sus archivos. Esta accion no se puede deshacer. Continuar?">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="ss-btn ss-btn--danger ss-btn--sm">Eliminar</button>
+                                </form>
                             </td>
                         </tr>
                     @endforeach
@@ -146,31 +142,17 @@
                             <div class="ss-field">
                                 <label for="ss-disk">Disco para la division (MiB)</label>
                                 <input type="number" id="ss-disk" name="disk" data-resource="disk"
-                                       min="{{ $settings['min_disk'] }}" step="256"
-                                       value="{{ old('disk', $settings['min_disk']) }}"
-                                       @disabled(!$settings['allow_disk'])>
-                                <p class="ss-hint">
-                                    @if ($settings['allow_disk'])
-                                        Minimo {{ $settings['min_disk'] }} MiB.
-                                    @else
-                                        El administrador fija el disco en {{ $settings['min_disk'] }} MiB.
-                                    @endif
-                                </p>
+                                       min="{{ $settings['min_disk'] }}" step="256" required
+                                       value="{{ old('disk', $settings['min_disk']) }}">
+                                <p class="ss-hint">Minimo {{ $settings['min_disk'] }} MiB.</p>
                             </div>
 
                             <div class="ss-field">
                                 <label for="ss-cpu">CPU para la division (%)</label>
                                 <input type="number" id="ss-cpu" name="cpu" data-resource="cpu"
-                                       min="{{ $settings['min_cpu'] }}" step="5"
-                                       value="{{ old('cpu', $settings['min_cpu']) }}"
-                                       @disabled(!$settings['allow_cpu'])>
-                                <p class="ss-hint">
-                                    @if ($settings['allow_cpu'])
-                                        Minimo {{ $settings['min_cpu'] }} %.
-                                    @else
-                                        El administrador fija la CPU en {{ $settings['min_cpu'] }} %.
-                                    @endif
-                                </p>
+                                       min="{{ $settings['min_cpu'] }}" step="5" required
+                                       value="{{ old('cpu', $settings['min_cpu']) }}">
+                                <p class="ss-hint">Minimo {{ $settings['min_cpu'] }} %.</p>
                             </div>
                         @else
                             <div class="ss-field ss-field--full">
