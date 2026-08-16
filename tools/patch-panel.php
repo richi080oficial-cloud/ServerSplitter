@@ -197,7 +197,36 @@ function insertServerCreateFields(string $contents): ?string
  */
 function insertServerBuildFields(string $contents): ?string
 {
-    return insertLimitFields($contents, '$server');
+    $result = insertLimitFields($contents, '$server');
+    
+    if ($result === null) {
+        return null;
+    }
+    
+    // Insertar también el panel integrado de ServerSplitter
+    return insertSplitterPanel($result);
+}
+
+/**
+ * Panel integrado de ServerSplitter en la vista del servidor.
+ */
+function insertSplitterPanel(string $contents): ?string
+{
+    $close = strripos($contents, '</form>');
+
+    if ($close === false) {
+        return null;
+    }
+
+    $indent = indentOfLineAt($contents, $close);
+
+    $block = wrap($indent, [
+        $indent . "@include('serversplitter::admin.partials.server-splitter', ['ssServer' => \$server])",
+    ]);
+
+    $lineStart = lineStartAt($contents, $close);
+
+    return substr($contents, 0, $lineStart) . $block . substr($contents, $lineStart);
 }
 
 /**
