@@ -119,7 +119,7 @@ class ClientPanelScript
     /** Etiqueta <script> con defer: no bloquea el arranque de React. */
     protected function tag(): string
     {
-        $src = url('extensions/serversplitter/serversplitter-inject.js');
+        $src = asset('extensions/serversplitter/serversplitter-inject.js');
 
         return "\n" . self::MARKER . "\n"
             . '<script src="' . e($src) . '" defer></script>' . "\n";

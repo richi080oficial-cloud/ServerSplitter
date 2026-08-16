@@ -28,9 +28,10 @@ class AssetController extends Controller
         $path = realpath(__DIR__ . '/../../../resources/assets/' . $asset);
         abort_if($path === false || !is_file($path), 404);
 
-        return response()->file($path, [
-            'Content-Type' => self::ALLOWED[$asset],
-            'Cache-Control' => 'public, max-age=86400',
-        ]);
+        $response = response()->file($path);
+        $response->header('Content-Type', self::ALLOWED[$asset]);
+        $response->header('Cache-Control', 'public, max-age=86400');
+
+        return $response;
     }
 }
