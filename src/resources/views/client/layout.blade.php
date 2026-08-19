@@ -12,12 +12,11 @@
 
 <header class="ss-header">
     <div class="ss-container ss-header__inner">
-        <a class="ss-brand" href="{{ route('serversplitter.index') }}">
+        <span class="ss-brand">
             <span class="ss-brand__mark" aria-hidden="true">&#9707;</span>
             ServerSplitter
-        </a>
+        </span>
         <nav class="ss-nav" aria-label="Navegacion principal">
-            <a class="ss-nav__link" href="{{ route('serversplitter.index') }}">Mis servidores</a>
             <a class="ss-nav__link" href="{{ url('/') }}">Volver al panel</a>
         </nav>
     </div>

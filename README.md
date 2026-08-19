@@ -6,9 +6,8 @@ Permite que un cliente **divida su servidor** en servidores hijos: se crea un se
 con parte de los recursos del principal y el padre se redimensiona automaticamente.
 Al eliminar una division, los recursos vuelven al padre.
 
-- Panel de administracion propio (`/admin/serversplitter`) con configuracion, reglas por egg y limites por servidor.
-- Interfaz de cliente independiente: listado en `/serversplitter` y gestion por servidor en
-  `/server/{id}/serversplitter`, responsive y accesible.
+- Panel de administracion propio (`/admin/extensions/serversplitter`) con configuracion, reglas por egg y limites por servidor.
+- Interfaz de cliente independiente por servidor en `/server/{id}/serversplitter`, responsive y accesible.
 - API con clave propia para **WHMCS / Paymenter** (ampliar recursos, fijar limites, purgar divisiones).
 - Operaciones **atomicas**: bloqueo pesimista por servidor y rollback si el padre no puede redimensionarse.
 
@@ -107,9 +106,12 @@ con Blueprint, que ServerSplitter no usa a proposito). Limitaciones conocidas de
 
 - Los formularios de dentro (crear/eliminar division) siguen siendo un POST normal: al enviarlos, el
   navegador navega de verdad y aterriza en la pagina completa de ServerSplitter (con su propio layout).
-- Si mientras se ve el fragmento el usuario pulsa cualquier otro enlace del panel (Console, Files...),
-  se fuerza una recarga completa de pagina en vez de dejar que React intente renderizar sobre un
-  contenedor que ya no reconoce. Lo mismo al pulsar "atras"/"adelante" del navegador.
+- Los nodos que React tenia en el area de contenido **no se destruyen** al sustituirlos: se mueven (sin
+  recrearlos) a un `DocumentFragment` en memoria. Si el usuario navega a otra pestana (Console, Files...)
+  o pulsa "atras"/"adelante", se detecta interceptando `history.pushState`/`replaceState`/`popstate` (el
+  unico mecanismo que cualquier SPA usa para cambiar de ruta, sea cual sea el marcado del sidebar) y se
+  devuelven esos mismos nodos a su sitio antes de que React reaccione al cambio de URL. Asi React se
+  encuentra el DOM que el mismo creo, intacto, y puede seguir renderizando con normalidad.
 - Si el script no logra localizar el area de contenido de la SPA (selector no reconocido en tu tema), se
   cae automaticamente a una navegacion normal: nunca deja la pagina a medias.
 
@@ -128,7 +130,7 @@ enlace directo, marcador o sin JavaScript.
 - Limite de peticiones (`throttle`) en crear/eliminar divisiones desde el panel de cliente y en toda
   la API de integracion, para frenar abuso o scripts descontrolados.
 - Lista blanca de IPs opcional para la API de integracion (ademas de la clave), configurable en
-  `/admin/serversplitter` > pestana General.
+  `/admin/extensions/serversplitter` > pestana General.
 - La clave de la API se compara con `password_verify` (a tiempo constante) y se guarda hasheada;
   nunca se registra ni se puede volver a mostrar.
 

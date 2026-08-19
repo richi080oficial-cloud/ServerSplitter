@@ -15,14 +15,6 @@ Route::middleware(['web'])
     ->name('serversplitter.asset');
 
 /*
- * Listado de servidores divisibles del usuario (no cuelga de ningun servidor
- * concreto, asi que se queda en /serversplitter).
- */
-Route::middleware(['web', 'auth'])
-    ->get('serversplitter', [SplitterController::class, 'index'])
-    ->name('serversplitter.index');
-
-/*
  * Rutas de cliente para un servidor concreto: /server/{server}/serversplitter
  *
  * Cuelgan de la misma ruta base que usa el panel de cliente (/server/{id}/...)
@@ -57,10 +49,19 @@ Route::middleware(['web', 'auth'])
     });
 
 /*
- * Rutas de administracion: /admin/serversplitter
+ * Rutas de administracion: /admin/extensions/serversplitter
+ *
+ * OJO: no uses "admin/serversplitter" (ni ningun prefijo que empiece
+ * literalmente por "admin/servers"). El sidebar de algunos temas de
+ * administracion resalta la seccion "Servers" con una comprobacion de
+ * prefijo tipo admin/servers* (para que siga activa en
+ * admin/servers/view/123, etc.), y esa cadena coincide por accidente con
+ * "admin/serversplitter" (empieza igual, letra a letra: a-d-m-i-n-/-s-e-r-
+ * v-e-r-s), asi que "Servers" se marcaba activo tambien en nuestra pagina.
+ * Anidando bajo /admin/extensions/ se evita la colision.
  */
 Route::middleware(['web', 'auth', AdminAuthenticate::class])
-    ->prefix('admin/serversplitter')
+    ->prefix('admin/extensions/serversplitter')
     ->name('admin.serversplitter.')
     ->group(function () {
         Route::get('/', [AdminController::class, 'index'])->name('index');

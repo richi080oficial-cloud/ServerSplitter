@@ -4,7 +4,7 @@
  * Valores por defecto de ServerSplitter.
  *
  * Todos estos valores pueden sobreescribirse desde el panel de administracion
- * (/admin/serversplitter). Lo que se guarda en la tabla serversplitter_settings
+ * (/admin/extensions/serversplitter). Lo que se guarda en la tabla serversplitter_settings
  * tiene prioridad sobre este archivo; este archivo solo define el fallback.
  */
 

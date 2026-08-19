@@ -148,8 +148,8 @@ function insertSidebarEntry(string $contents): ?string
     // RouteNotFoundException si el provider aun no esta registrado.
     $block = wrap($indent, [
         $inner . '<li class="header">SERVERSPLITTER</li>',
-        $inner . '<li class="{{ request()->is(\'admin/serversplitter\', \'admin/serversplitter/*\') ? \'active\' : \'\' }}">',
-        $inner . '    <a href="{{ \Illuminate\Support\Facades\Route::has(\'admin.serversplitter.index\') ? route(\'admin.serversplitter.index\') : url(\'/admin/serversplitter\') }}">',
+        $inner . '<li class="{{ request()->is(\'admin/extensions/serversplitter\', \'admin/extensions/serversplitter/*\') ? \'active\' : \'\' }}">',
+        $inner . '    <a href="{{ \Illuminate\Support\Facades\Route::has(\'admin.serversplitter.index\') ? route(\'admin.serversplitter.index\') : url(\'/admin/extensions/serversplitter\') }}">',
         $inner . '        <i class="fa fa-clone"></i> <span>ServerSplitter</span>',
         $inner . '    </a>',
         $inner . '</li>',

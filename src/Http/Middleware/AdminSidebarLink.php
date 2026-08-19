@@ -20,7 +20,7 @@ use Symfony\Component\HttpFoundation\Response;
  * Reglas de seguridad que se aplican antes de tocar nada:
  *   - solo peticiones GET no-AJAX de /admin* hechas por un root_admin,
  *   - solo respuestas 200 de tipo text/html (nunca JSON, descargas ni streams),
- *   - si el menu ya contiene un enlace a admin/serversplitter, no se hace nada
+ *   - si el menu ya contiene un enlace a admin/extensions/serversplitter, no se hace nada
  *     (asi el parche Blade y este middleware nunca se duplican).
  *
  * El HTML insertado usa exclusivamente clases de AdminLTE (header, active,
@@ -55,8 +55,8 @@ class AdminSidebarLink
         [$openEnd, $close] = $bounds;
 
         // Solo se mira DENTRO del menu: la pagina de la extension contiene
-        // formularios que apuntan a admin/serversplitter y no deben contar.
-        if (str_contains(substr($html, $openEnd, $close - $openEnd), 'admin/serversplitter')) {
+        // formularios que apuntan a admin/extensions/serversplitter y no deben contar.
+        if (str_contains(substr($html, $openEnd, $close - $openEnd), 'admin/extensions/serversplitter')) {
             return $response;
         }
 
@@ -113,11 +113,11 @@ class AdminSidebarLink
      */
     protected function entry(Request $request): string
     {
-        $active = $request->is('admin/serversplitter', 'admin/serversplitter/*') ? ' class="active"' : '';
+        $active = $request->is('admin/extensions/serversplitter', 'admin/extensions/serversplitter/*') ? ' class="active"' : '';
 
         $url = Route::has('admin.serversplitter.index')
             ? route('admin.serversplitter.index')
-            : url('/admin/serversplitter');
+            : url('/admin/extensions/serversplitter');
 
         return "\n" . self::MARKER . "\n"
             . '<li class="header">SERVERSPLITTER</li>' . "\n"

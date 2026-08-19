@@ -58,6 +58,9 @@
     /** Contenedor actualmente sustituido por nuestro fragmento, o null. */
     var currentContentEl = null;
 
+    /** Identificador del servidor mostrado actualmente en sitio, o null. */
+    var swappedIdentifier = null;
+
     /** true mientras el area de contenido muestra nuestro fragmento en sitio. */
     var swapped = false;
 
@@ -394,8 +397,45 @@
     }
 
     /**
+     * Nodos originales que React tenia dentro del area de contenido antes de
+     * sustituirla por nuestro fragmento, guardados (no destruidos) para
+     * devolverlos tal cual al salir. Junto con currentContentEl, define si
+     * estamos mostrando el fragmento en sitio.
+     */
+    var savedOriginalContent = null;
+
+    /**
+     * Devuelve el area de contenido a como estaba antes de mostrar el
+     * fragmento: se quita nuestro wrapper y se reinsertan los nodos
+     * originales de React exactamente donde estaban. Al no haberlos
+     * destruido nunca (solo movidos a un DocumentFragment en memoria),
+     * React sigue reconociendolos como suyos y puede volver a renderizar
+     * sobre ellos con normalidad.
+     */
+    function restoreOriginalContent() {
+        if (currentContentEl === null) {
+            return;
+        }
+
+        currentContentEl.innerHTML = ''; // solo contiene nuestro wrapper: seguro de vaciar.
+
+        if (savedOriginalContent !== null) {
+            currentContentEl.appendChild(savedOriginalContent);
+        }
+
+        log('contenido original de la SPA restaurado');
+
+        currentContentEl = null;
+        savedOriginalContent = null;
+        swappedIdentifier = null;
+        swapped = false;
+    }
+
+    /**
      * Sustituye el area de contenido de la SPA por el fragmento HTML del
-     * servidor indicado, sin recargar la pagina. Si algo falla (red,
+     * servidor indicado, sin recargar la pagina. Los nodos que hubiera
+     * dentro (los que pinto React) se guardan sin destruir, para poder
+     * devolverlos intactos en restoreOriginalContent(). Si algo falla (red,
      * respuesta no valida...) se cae a una navegacion normal.
      */
     function loadIntoContent(contentEl, identifier, href) {
@@ -412,12 +452,39 @@
 
             return response.text();
         }).then(function (html) {
-            contentEl.innerHTML = html;
+            // Si ya habia un fragmento nuestro mostrado (p.ej. cambiando de
+            // servidor sin salir del todo), se descarta: no hay nada de
+            // React que conservar ahi.
+            if (swapped) {
+                currentContentEl = null;
+                savedOriginalContent = null;
+            }
+
+            if (currentContentEl === null) {
+                savedOriginalContent = document.createDocumentFragment();
+
+                while (contentEl.firstChild) {
+                    savedOriginalContent.appendChild(contentEl.firstChild);
+                }
+            }
+
+            var wrapper = document.createElement('div');
+            wrapper.setAttribute('data-serversplitter-fragment-root', '1');
+            wrapper.innerHTML = html;
+
+            contentEl.innerHTML = '';
+            contentEl.appendChild(wrapper);
             contentEl.removeAttribute('aria-busy');
             currentContentEl = contentEl;
-            swapped = true;
 
+            // swapped se activa DESPUES de este pushState a proposito: nuestro
+            // propio watchHistory() solo restaura el contenido original ante
+            // navegaciones ajenas, y las distingue de esta por si swapped
+            // todavia es false en este momento.
             window.history.pushState({ serversplitter: true }, '', href);
+            swapped = true;
+            swappedIdentifier = identifier;
+
             window.scrollTo(0, 0);
             reinitFragmentScripts();
             log('contenido sustituido en sitio para ' + identifier + ' (sin recargar la pagina)');
@@ -443,6 +510,15 @@
         var href = event.currentTarget.getAttribute('href') || '';
 
         if (!identifier) {
+            return;
+        }
+
+        // Ya se esta mostrando este mismo servidor en sitio: no hay nada que
+        // volver a sustituir (y hacerlo perderia los nodos originales de
+        // React guardados para restaurar mas tarde, ver loadIntoContent).
+        if (swapped && swappedIdentifier === identifier) {
+            event.preventDefault();
+
             return;
         }
 
@@ -658,6 +734,20 @@
         }
     }
 
+    /**
+     * pushState/replaceState son el unico mecanismo que cualquier SPA usa
+     * para cambiar de ruta sin recargar la pagina (lo use un <a>, un
+     * elemento sin href con onClick, el teclado...), asi que interceptarlos
+     * aqui cubre CUALQUIER forma en la que el usuario navegue a otro sitio
+     * mientras se ve nuestro fragmento, sin tener que adivinar como esta
+     * implementado el sidebar del tema.
+     *
+     * Nuestra propia llamada a pushState (para entrar al fragmento) no
+     * dispara la restauracion: swapped todavia es false en ese momento
+     * (loadIntoContent lo activa DESPUES de llamar a pushState), asi que
+     * cualquier otra llamada que llegue con swapped ya a true es, por
+     * definicion, ajena.
+     */
     function watchHistory(method) {
         var original = window.history[method];
 
@@ -666,6 +756,11 @@
         }
 
         window.history[method] = function () {
+            if (swapped) {
+                log('la SPA navega mientras se mostraba el fragmento: restaurando el contenido original antes de continuar');
+                restoreOriginalContent();
+            }
+
             var result = original.apply(this, arguments);
             schedule();
 
@@ -686,7 +781,6 @@
             window.setInterval(schedule, 1000);
         }
 
-        window.addEventListener('popstate', schedule);
         watchHistory('pushState');
         watchHistory('replaceState');
 
@@ -698,46 +792,18 @@
         window.addEventListener('scroll', schedule, true);
         window.addEventListener('resize', schedule);
 
-        // Tras sustituir el contenido en sitio, ese contenedor deja de tener
-        // el DOM que React recuerda haber pintado. Si el usuario pulsa
-        // "atras"/"adelante" del navegador, la forma segura de recuperar un
-        // estado valido es recargar del todo en vez de dejar que React
-        // intente reconciliar sobre un arbol que ya no reconoce.
+        // "Atras"/"adelante" del navegador no pasa por pushState/replaceState
+        // (dispara popstate directamente), asi que necesita su propio aviso
+        // para restaurar el contenido original antes de que la SPA
+        // reaccione al cambio de URL.
         window.addEventListener('popstate', function () {
             if (swapped) {
-                log('volviendo atras/adelante tras sustituir contenido: recargando la pagina para recuperar la SPA');
-                window.location.reload();
+                log('atras/adelante del navegador mientras se mostraba el fragmento: restaurando el contenido original');
+                restoreOriginalContent();
             }
+
+            schedule();
         });
-
-        // Misma idea para cualquier otro enlace del panel (Console, Files...)
-        // que el usuario pulse mientras estamos mostrando el fragmento: en
-        // vez de dejar que React Router intente su propia navegacion
-        // interna sobre un contenedor que ya no coincide con lo que
-        // recuerda, se fuerza una navegacion de pagina completa normal.
-        // capture:true para verlo antes que cualquier handler de React.
-        document.addEventListener('click', function (event) {
-            if (!swapped || event.defaultPrevented || event.button !== 0
-                || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
-                return;
-            }
-
-            var anchor = event.target && typeof event.target.closest === 'function'
-                ? event.target.closest('a[href]')
-                : null;
-
-            if (anchor === null || anchor.hasAttribute(ATTR)) {
-                return;
-            }
-
-            if (currentContentEl !== null && currentContentEl.contains(anchor)) {
-                return;
-            }
-
-            event.preventDefault();
-            log('enlace fuera del fragmento pulsado tras sustituir contenido: navegando de pagina completa a ' + anchor.href);
-            window.location.href = anchor.href;
-        }, true);
     }
 
     if (document.readyState === 'loading') {

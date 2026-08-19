@@ -20,26 +20,6 @@ class SplitterController extends Controller
     {
     }
 
-    /**
-     * Lista los servidores del usuario que pueden dividirse.
-     */
-    public function index(): View
-    {
-        $user = $this->user();
-
-        // Dividir es exclusivo del propietario: los administradores gestionan
-        // las divisiones desde /admin/serversplitter, no desde el area cliente.
-        $query = Server::query()->where('owner_id', $user->id)->orderBy('name');
-
-        $servers = $query->limit(200)->get()->reject(fn (Server $s) => $this->splitter->isChild($s))->values();
-
-        return view('serversplitter::client.list', [
-            'servers' => $servers,
-            'settings' => $this->splitter->settings(),
-            'splitter' => $this->splitter,
-        ]);
-    }
-
     public function show(string $server): View
     {
         $parent = $this->resolveServer($server);

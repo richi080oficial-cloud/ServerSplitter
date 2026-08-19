@@ -303,7 +303,7 @@ do_install() {
 
     local url; url="$(app_url)"
     ok "ServerSplitter v${ADDON_VERSION} instalado correctamente."
-    printf '\n  %sAdministración:%s  %s/admin/serversplitter\n' "$C_BOLD" "$C_RESET" "${url:-https://tu-panel}"
+    printf '\n  %sAdministración:%s  %s/admin/extensions/serversplitter\n' "$C_BOLD" "$C_RESET" "${url:-https://tu-panel}"
     printf '  %sCliente:%s         %s/serversplitter\n' "$C_BOLD" "$C_RESET" "${url:-https://tu-panel}"
     printf '  %sAPI:%s             %s/api/serversplitter/servers/{server}\n' "$C_BOLD" "$C_RESET" "${url:-https://tu-panel}"
     printf '  %sEnlaces:%s         menú lateral del admin y pestaña «Divisiones» del servidor\n' "$C_BOLD" "$C_RESET"
