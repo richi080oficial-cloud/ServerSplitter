@@ -5,16 +5,27 @@
  * styled-components, asi que no hay forma estable de "montar" un componente
  * desde fuera. Lo que se hace aqui es localizar el grupo de addons del sidebar
  * del servidor (el contenedor con data-theme-layout-group="server:addons", donde
- * viven Plugins, Server Config, Subdomains...) y anadir un enlace propio
- * clonando la estructura y las clases de un enlace vecino: <a> > <span icono> +
- * <span etiqueta>. Asi el item hereda el estilo exacto del tema activo.
+ * viven Plugins, Server Config, Subdomains...) y clonar la estructura y las
+ * clases de un enlace vecino (<a> > <span icono> + <span etiqueta>) para que
+ * el nuestro herede el estilo exacto del tema activo.
+ *
+ * Ese enlace NO se inserta como hijo real de ese grupo: algunos temas
+ * vuelven a renderizarlo muy a menudo (estadisticas de CPU/RAM por
+ * websocket, por ejemplo) y React se lleva por delante cualquier nodo ajeno
+ * en cada renderizado, en un bucle de insertar/borrar demasiado rapido para
+ * llegar a pintarse. En su lugar se renderiza en un "portal" propio colgado
+ * de <body> (fuera del arbol de React) y se posiciona por coordenadas
+ * (position: fixed + getBoundingClientRect) justo debajo del grupo, para que
+ * visualmente parezca un elemento mas de la lista. Ver ensurePortal/renderPortal.
  *
  * Si ese grupo no existe (Pterodactyl sin tema, o temas antiguos) se cae hacia
- * la barra de navegacion clasica del servidor.
+ * la barra de navegacion clasica del servidor; si tampoco se encuentra nada
+ * reconocible, se muestra un enlace flotante fijo como ultimo recurso (ver
+ * buildFloatingLink).
  *
- * Es tolerante a los re-render de React (MutationObserver) y a la navegacion
- * por historial (pushState / replaceState / popstate). No depende de ninguna
- * libreria y se ejecuta una sola vez por documento.
+ * Es tolerante a los re-render de React (MutationObserver), al scroll/resize
+ * y a la navegacion por historial (pushState / replaceState / popstate). No
+ * depende de ninguna libreria y se ejecuta una sola vez por documento.
  */
 (function () {
     'use strict';
@@ -319,6 +330,79 @@
     }
 
     /**
+     * "Portal" fuera del arbol de React: un <div> propio colgado
+     * directamente de <body>, nunca dentro del contenedor que gestiona
+     * React. Se posiciona por coordenadas (position: fixed +
+     * getBoundingClientRect) justo debajo del grupo de addons del sidebar,
+     * para que visualmente parezca un elemento mas de la lista sin serlo
+     * realmente en el DOM.
+     *
+     * Por que no se inserta como hijo real de ese contenedor: algunos temas
+     * vuelven a renderizar ese grupo muy a menudo (por ejemplo al llegar
+     * estadisticas de CPU/RAM por websocket) y en cada renderizado React
+     * reconstruye sus hijos y se lleva por delante cualquier nodo ajeno que
+     * se le haya anadido a mano, en un bucle de insertar/borrar demasiado
+     * rapido para que llegue a pintarse en pantalla.
+     */
+    var portal = null;
+
+    function ensurePortal() {
+        if (portal !== null) {
+            return portal;
+        }
+
+        portal = document.createElement('div');
+        portal.setAttribute('data-serversplitter-portal', '1');
+        portal.style.cssText = 'position:fixed;z-index:2147483000;display:none;';
+        document.body.appendChild(portal);
+
+        return portal;
+    }
+
+    /**
+     * Posiciona el portal justo debajo del contenedor de referencia (el
+     * grupo de addons, o la barra de navegacion clasica), con su mismo
+     * ancho, y sincroniza el enlace de dentro con la plantilla y el href
+     * actuales.
+     */
+    function renderPortal(target, template, identifier) {
+        var host = ensurePortal();
+        var rect = target.container.getBoundingClientRect();
+
+        host.style.top = Math.round(rect.bottom) + 'px';
+        host.style.left = Math.round(rect.left) + 'px';
+        host.style.width = Math.round(rect.width) + 'px';
+        host.style.display = rect.width > 0 ? '' : 'none';
+
+        var link = host.firstElementChild;
+
+        if (link === null || link.getAttribute(ATTR) !== identifier) {
+            log('servidor ' + identifier + ': enlace creado, posicionado bajo', target.container);
+            host.innerHTML = '';
+            link = build(template, identifier);
+            host.appendChild(link);
+        } else {
+            var href = hrefFor(identifier);
+
+            if (link.getAttribute('href') !== href) {
+                link.setAttribute('href', href);
+            }
+
+            if (link.className !== template.anchorClass) {
+                link.className = template.anchorClass;
+            }
+        }
+
+        syncActive(link, template.anchorClass);
+    }
+
+    function hidePortal() {
+        if (portal !== null) {
+            portal.style.display = 'none';
+        }
+    }
+
+    /**
      * Marca el enlace como activo cuando estamos en su pagina. Los cambios se
      * escriben solo si hacen falta: el MutationObserver reacciona a cualquier
      * escritura y hacerlo a ciegas provocaria un bucle de re-render.
@@ -344,15 +428,19 @@
         }
     }
 
+    function fallbackLink() {
+        return document.querySelector('[data-serversplitter-fallback]');
+    }
+
     function apply() {
         pending = false;
 
         var identifier = currentIdentifier();
-        var existing = document.querySelector('[' + ATTR + ']');
 
         if (identifier === null) {
             log('no estamos en una pagina de servidor (pathname: ' + window.location.pathname + ')');
-            detach(existing);
+            hidePortal();
+            detach(fallbackLink());
 
             return;
         }
@@ -361,7 +449,8 @@
 
         if (available !== true) {
             log('servidor ' + identifier + ': disponibilidad =', available);
-            detach(existing);
+            hidePortal();
+            detach(fallbackLink());
 
             return;
         }
@@ -375,44 +464,21 @@
                 'de emergencia; manda una captura del sidebar completo (Elements de DevTools) para ajustar el selector.'
             );
 
-            if (existing !== null && existing.hasAttribute('data-serversplitter-fallback')) {
-                return;
-            }
+            hidePortal();
 
-            detach(existing);
-            document.body.appendChild(buildFloatingLink(identifier));
+            if (fallbackLink() === null) {
+                document.body.appendChild(buildFloatingLink(identifier));
+            }
 
             return;
         }
 
-        log('servidor ' + identifier + ': insertando en', target.container);
+        // Encontrado un hueco de verdad: no hace falta el flotante de emergencia.
+        detach(fallbackLink());
 
         var template = templateFrom(target.sample);
 
-        // Se reutiliza el enlace ya inyectado salvo que haya cambiado de
-        // servidor o que React haya reconstruido el contenedor.
-        if (existing !== null) {
-            if (!existing.hasAttribute('data-serversplitter-fallback')
-                && existing.getAttribute(ATTR) === identifier
-                && existing.parentNode === target.container) {
-                var href = hrefFor(identifier);
-
-                if (existing.getAttribute('href') !== href) {
-                    existing.setAttribute('href', href);
-                }
-
-                syncActive(existing, template.anchorClass);
-
-                return;
-            }
-
-            detach(existing);
-        }
-
-        var link = build(template, identifier);
-
-        target.container.appendChild(link);
-        syncActive(link, template.anchorClass);
+        renderPortal(target, template, identifier);
     }
 
     function schedule() {
@@ -460,6 +526,14 @@
         window.addEventListener('popstate', schedule);
         watchHistory('pushState');
         watchHistory('replaceState');
+
+        // El portal se posiciona por coordenadas: hay que recalcularlas si
+        // la pagina o el propio sidebar hacen scroll, o si cambia el
+        // tamano de la ventana. capture:true en scroll para enterarse
+        // tambien del scroll interno del sidebar (los eventos de scroll no
+        // burbujean, pero si se capturan bajando desde window).
+        window.addEventListener('scroll', schedule, true);
+        window.addEventListener('resize', schedule);
     }
 
     if (document.readyState === 'loading') {
