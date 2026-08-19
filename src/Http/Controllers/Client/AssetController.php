@@ -29,8 +29,14 @@ class AssetController extends Controller
         abort_if($path === false || !is_file($path), 404);
 
         $response = response()->file($path);
-        $response->header('Content-Type', self::ALLOWED[$asset]);
-        $response->header('Cache-Control', 'public, max-age=86400');
+
+        // response()->file() devuelve Symfony\...\BinaryFileResponse
+        // directamente (no la Illuminate\Http\Response de Laravel), y esa
+        // clase no tiene el metodo header(): solo expone el HeaderBag
+        // publico. Llamar a ->header() aqui lanzaba un Error fatal
+        // ("Call to undefined method") en cada peticion a este asset.
+        $response->headers->set('Content-Type', self::ALLOWED[$asset]);
+        $response->headers->set('Cache-Control', 'public, max-age=86400');
 
         return $response;
     }
