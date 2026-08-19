@@ -13,6 +13,7 @@
 @endsection
 
 @section('content')
+    @include('serversplitter::admin.partials.grid-fix')
     <style>
         /* El panel de administracion de Pterodactyl (AdminLTE) fuerza cajas blancas.
            Aqui se neutraliza ese blanco: los contenedores pasan a ser transparentes

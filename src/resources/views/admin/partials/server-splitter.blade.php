@@ -30,7 +30,8 @@
 @endphp
 
 @if ($settings['enabled'] ?? false)
-<div class="box box-primary" style="margin-top: 20px;">
+@include('serversplitter::admin.partials.grid-fix')
+<div class="ss-admin box box-primary" style="margin-top: 20px;">
     <div class="box-header with-border">
         <h3 class="box-title">
             <i class="fa fa-sitemap"></i> ServerSplitter

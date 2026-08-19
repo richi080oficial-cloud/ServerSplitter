@@ -54,7 +54,8 @@
     $ssAllEggs = \Pterodactyl\Models\Egg::query()->with('nest')->orderBy('name')->get();
 @endphp
 
-<div class="box-body" style="border-top:1px solid #f4f4f4;">
+@include('serversplitter::admin.partials.grid-fix')
+<div class="ss-admin box-body" style="border-top:1px solid #f4f4f4;">
     <h4 style="margin-top:0;">
         ServerSplitter <small>limites de division de este servidor</small>
     </h4>
