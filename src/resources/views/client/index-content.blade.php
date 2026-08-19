@@ -1,11 +1,11 @@
 {{--
-    ServerSplitter - contenido de la pagina de un servidor padre, sin la
-    envoltura de pagina (client.layout). Se reutiliza en dos sitios:
-
-      - client.index    -> pagina completa, para navegacion normal / sin JS.
-      - SplitterController::fragment -> HTML suelto que el script inyectado
-        en el panel de cliente pide por fetch() para sustituir el area de
-        contenido de la SPA sin recargar la pagina (ver serversplitter-inject.js).
+    ServerSplitter - contenido de la pagina de un servidor padre: solo el
+    HTML interior, sin <html>/cabecera/pie. La renderiza
+    SplitterController::fragment() y la pide por fetch() el script inyectado
+    en el panel de cliente, para sustituir el area de contenido de la SPA sin
+    recargar la pagina (ver serversplitter-inject.js). No existe una version
+    de pagina completa aparte: una carga real siempre pasa primero por la SPA
+    (ver SplitterController::show()).
 
     Variables esperadas: $server, $state, $settings, $eggs, $canChooseEgg.
 --}}

@@ -98,25 +98,36 @@ consulta ninguna lista: la division simplemente copia el egg que el padre ya ten
 
 ## Integracion en el panel de cliente (sin recargar la pagina)
 
-El enlace "Divisiones" del sidebar del servidor no hace una navegacion normal: `serversplitter-inject.js`
-intercepta el clic, pide el contenido por `fetch()` a `/server/{id}/serversplitter/fragment` (HTML suelto,
-sin la pagina completa) y lo sustituye en el area central de la SPA, dejando el sidebar y el fondo del
-tema intactos. Es una simulacion por JavaScript, no una integracion nativa de React (eso solo es posible
-con Blueprint, que ServerSplitter no usa a proposito). Limitaciones conocidas de esta tecnica:
+No existe una pagina completa propia para `/server/{id}/serversplitter`: **no hay "version antigua"**,
+solo la integrada. Como funciona segun la forma de llegar:
 
-- Los formularios de dentro (crear/eliminar division) siguen siendo un POST normal: al enviarlos, el
-  navegador navega de verdad y aterriza en la pagina completa de ServerSplitter (con su propio layout).
+- **Clic en "Divisiones" desde el sidebar** (SPA ya cargada): `serversplitter-inject.js` intercepta el
+  clic, pide el contenido por `fetch()` a `/server/{id}/serversplitter/fragment` (HTML suelto) y lo
+  sustituye en el area central de la SPA, dejando el sidebar y el fondo del tema intactos.
+- **Carga real de la pagina** (F5, marcador, pestana nueva, o el redirect tras crear/eliminar una
+  division): una carga real no puede "continuar" dentro de React, tiene que arrancar de cero. Por eso
+  `SplitterController::show()` redirige a la pagina normal del servidor (`/server/{id}?ss=1`) en vez de
+  renderizar nada propio; en cuanto React termina de montar esa pagina (con reintentos, porque puede
+  tardar unos milisegundos), el script detecta el aviso `?ss=1` en la URL y sustituye el contenido con el
+  mismo mecanismo que el clic, limpiando la URL con `replaceState`. Los avisos de exito/error (crear,
+  eliminar) viajan en la propia URL (`ss_ok=` / `ss_error=`) en vez de por sesion, porque el flash de
+  sesion no sobrevive el salto extra del redirect.
+
+Es una simulacion por JavaScript, no una integracion nativa de React (eso solo es posible con Blueprint,
+que ServerSplitter no usa a proposito). Como se hace sin romper la SPA:
+
 - Los nodos que React tenia en el area de contenido **no se destruyen** al sustituirlos: se mueven (sin
   recrearlos) a un `DocumentFragment` en memoria. Si el usuario navega a otra pestana (Console, Files...)
   o pulsa "atras"/"adelante", se detecta interceptando `history.pushState`/`replaceState`/`popstate` (el
   unico mecanismo que cualquier SPA usa para cambiar de ruta, sea cual sea el marcado del sidebar) y se
   devuelven esos mismos nodos a su sitio antes de que React reaccione al cambio de URL. Asi React se
   encuentra el DOM que el mismo creo, intacto, y puede seguir renderizando con normalidad.
-- Si el script no logra localizar el area de contenido de la SPA (selector no reconocido en tu tema), se
-  cae automaticamente a una navegacion normal: nunca deja la pagina a medias.
-
-La URL `/server/{id}/serversplitter` sigue funcionando igual (pagina completa) para quien llegue por
-enlace directo, marcador o sin JavaScript.
+- Los formularios de dentro (crear/eliminar division) siguen siendo un POST normal: al enviarlos, el
+  navegador navega de verdad, pasa por el redirect de arriba y aterriza otra vez integrado, con el aviso
+  correspondiente.
+- Si el script no logra localizar el area de contenido de la SPA (selector no reconocido en tu tema), el
+  clic se deja como una navegacion normal (que a su vez pasa por el mismo redirect) en vez de quedarse a
+  medias.
 
 ## Protecciones incluidas
 

@@ -432,17 +432,49 @@
     }
 
     /**
+     * true justo antes de una llamada a pushState/replaceState hecha por
+     * nosotros mismos: watchHistory() la consume y la deja en false, para no
+     * confundirla con una navegacion ajena (ver watchHistory).
+     */
+    var suppressHistoryGuard = false;
+
+    function ourPushState(state, href) {
+        suppressHistoryGuard = true;
+        window.history.pushState(state, '', href);
+    }
+
+    function ourReplaceState(state, href) {
+        suppressHistoryGuard = true;
+        window.history.replaceState(state, '', href);
+    }
+
+    /** Construye el HTML de un aviso de exito/error para prepender al fragmento. */
+    function alertMarkup(status, message) {
+        var cls = status === 'error' ? 'ss-alert--bad' : 'ss-alert--ok';
+        var role = status === 'error' ? 'alert' : 'status';
+
+        return '<div class="ss-alert ' + cls + '" role="' + role + '">'
+            + message.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            + '</div>';
+    }
+
+    /**
      * Sustituye el area de contenido de la SPA por el fragmento HTML del
      * servidor indicado, sin recargar la pagina. Los nodos que hubiera
      * dentro (los que pinto React) se guardan sin destruir, para poder
-     * devolverlos intactos en restoreOriginalContent(). Si algo falla (red,
-     * respuesta no valida...) se cae a una navegacion normal.
+     * devolverlos intactos en restoreOriginalContent(). No toca el
+     * historial: eso lo decide quien llama (ver loadIntoContent y
+     * autoOpenIfRequested), segun si es una navegacion nueva o continuar una
+     * ya en marcha.
+     *
+     * @param {string|null} message Aviso de exito/error a mostrar arriba del
+     *   fragmento (por ejemplo, tras crear o eliminar una division).
      */
-    function loadIntoContent(contentEl, identifier, href) {
+    function swapInFragment(contentEl, identifier, status, message) {
         ensureFragmentCss();
         contentEl.setAttribute('aria-busy', 'true');
 
-        window.fetch('/server/' + encodeURIComponent(identifier) + '/serversplitter/fragment', {
+        return window.fetch('/server/' + encodeURIComponent(identifier) + '/serversplitter/fragment', {
             credentials: 'same-origin',
             headers: { Accept: 'text/html' }
         }).then(function (response) {
@@ -472,26 +504,109 @@
             wrapper.setAttribute('data-serversplitter-fragment-root', '1');
             wrapper.innerHTML = html;
 
+            // El aviso se inserta DENTRO del contenedor .ss-fragment.ss-container
+            // que ya trae el fragmento (no antes, como hermano suyo): asi
+            // hereda el mismo ancho maximo y centrado que el resto.
+            if (message) {
+                var alertHost = document.createElement('div');
+                alertHost.innerHTML = alertMarkup(status, message);
+
+                var target = wrapper.firstElementChild || wrapper;
+                target.insertBefore(alertHost.firstElementChild, target.firstChild);
+            }
+
             contentEl.innerHTML = '';
             contentEl.appendChild(wrapper);
             contentEl.removeAttribute('aria-busy');
             currentContentEl = contentEl;
-
-            // swapped se activa DESPUES de este pushState a proposito: nuestro
-            // propio watchHistory() solo restaura el contenido original ante
-            // navegaciones ajenas, y las distingue de esta por si swapped
-            // todavia es false en este momento.
-            window.history.pushState({ serversplitter: true }, '', href);
             swapped = true;
             swappedIdentifier = identifier;
 
-            window.scrollTo(0, 0);
             reinitFragmentScripts();
+            // Reposiciona el portal del sidebar de inmediato (no espera al
+            // siguiente scroll/mutacion): el area de contenido puede haber
+            // cambiado de alto y, con ella, el punto exacto donde acaba el
+            // sidebar en pantalla.
+            schedule();
             log('contenido sustituido en sitio para ' + identifier + ' (sin recargar la pagina)');
+        });
+    }
+
+    /**
+     * Version para un clic del usuario en el enlace del sidebar: aniade una
+     * entrada nueva al historial (pushState) y, si algo falla, se cae a una
+     * navegacion normal a la pagina completa.
+     */
+    function loadIntoContent(contentEl, identifier, href) {
+        swapInFragment(contentEl, identifier, null, null).then(function () {
+            ourPushState({ serversplitter: true }, href);
+            window.scrollTo(0, 0);
         }).catch(function (error) {
             log('fallo al cargar el fragmento, navegando normal a ' + href + ':', error);
             window.location.href = href;
         });
+    }
+
+    /**
+     * Al cargar la pagina (F5, marcador, pestana nueva, o tras enviar un
+     * formulario de crear/eliminar division) puede venir un aviso en la URL:
+     *   ?ss=1                 abrir ServerSplitter para este servidor
+     *   &ss_ok=mensaje        aviso de exito a mostrar
+     *   &ss_error=mensaje     aviso de error a mostrar
+     *
+     * SplitterController::show()/back() redirigen aqui en vez de renderizar
+     * una pagina propia: una carga real no puede "continuar" dentro de la
+     * SPA, tiene que arrancar de cero, asi que se deja que Pterodactyl monte
+     * su pagina normal del servidor y, en cuanto el area de contenido existe,
+     * se sustituye por el fragmento, con reintentos porque React puede
+     * tardar unos milisegundos en montar tras la carga del script.
+     */
+    function autoOpenIfRequested() {
+        var params = new URLSearchParams(window.location.search);
+
+        if (params.get('ss') !== '1') {
+            return;
+        }
+
+        var identifier = currentIdentifier();
+
+        if (identifier === null) {
+            return;
+        }
+
+        var status = params.has('ss_error') ? 'error' : 'ok';
+        var message = params.get('ss_error') || params.get('ss_ok') || null;
+
+        var cleanHref = '/server/' + encodeURIComponent(identifier) + '/serversplitter';
+        var attempts = 0;
+        var maxAttempts = 100; // ~5s a 50ms: tiempo de sobra para que React monte.
+
+        var tryOpen = function () {
+            var contentEl = findContentContainer();
+
+            if (contentEl === null) {
+                attempts++;
+
+                if (attempts < maxAttempts) {
+                    window.setTimeout(tryOpen, 50);
+                } else {
+                    log('no se pudo auto-abrir ServerSplitter: no se encontro el area de contenido a tiempo');
+                }
+
+                return;
+            }
+
+            // Se limpia la URL (quita ?ss=1&...) con replaceState: esto no es
+            // una navegacion nueva de verdad, es continuar la que ya traia la
+            // URL, asi que no debe anadir una entrada al historial.
+            ourReplaceState({ serversplitter: true }, cleanHref);
+
+            swapInFragment(contentEl, identifier, status, message).catch(function (error) {
+                log('fallo al auto-abrir el fragmento:', error);
+            });
+        };
+
+        tryOpen();
     }
 
     /**
@@ -742,11 +857,10 @@
      * mientras se ve nuestro fragmento, sin tener que adivinar como esta
      * implementado el sidebar del tema.
      *
-     * Nuestra propia llamada a pushState (para entrar al fragmento) no
-     * dispara la restauracion: swapped todavia es false en ese momento
-     * (loadIntoContent lo activa DESPUES de llamar a pushState), asi que
-     * cualquier otra llamada que llegue con swapped ya a true es, por
-     * definicion, ajena.
+     * Nuestras propias llamadas (ourPushState/ourReplaceState) se marcan de
+     * antemano con suppressHistoryGuard, asi que nunca se confunden con una
+     * navegacion ajena aunque el orden exacto de "cuando se activa swapped"
+     * cambie entre los distintos sitios que llaman a esto.
      */
     function watchHistory(method) {
         var original = window.history[method];
@@ -756,7 +870,9 @@
         }
 
         window.history[method] = function () {
-            if (swapped) {
+            if (suppressHistoryGuard) {
+                suppressHistoryGuard = false;
+            } else if (swapped) {
                 log('la SPA navega mientras se mostraba el fragmento: restaurando el contenido original antes de continuar');
                 restoreOriginalContent();
             }
@@ -770,7 +886,17 @@
 
     function start() {
         log('script cargado y arrancado en', window.location.pathname);
+
+        // watchHistory() tiene que estar instalado ANTES de que nada llame a
+        // ourReplaceState/ourPushState (autoOpenIfRequested puede hacerlo de
+        // forma sincrona si el area de contenido ya existe en el primer
+        // intento), si no la bandera suppressHistoryGuard no tendria ningun
+        // wrapper que la consumiera.
+        watchHistory('pushState');
+        watchHistory('replaceState');
+
         schedule();
+        autoOpenIfRequested();
 
         if (typeof window.MutationObserver === 'function') {
             new window.MutationObserver(schedule).observe(document.documentElement, {
@@ -780,9 +906,6 @@
         } else {
             window.setInterval(schedule, 1000);
         }
-
-        watchHistory('pushState');
-        watchHistory('replaceState');
 
         // El portal se posiciona por coordenadas: hay que recalcularlas si
         // la pagina o el propio sidebar hacen scroll, o si cambia el

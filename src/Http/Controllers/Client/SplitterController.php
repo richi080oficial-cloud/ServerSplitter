@@ -7,7 +7,6 @@ use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
-use Illuminate\View\View;
 use Pterodactyl\Models\Server;
 use Pterodactyl\Models\User;
 use Pterodactyl\Extensions\ServerSplitter\Exceptions\SplitterException;
@@ -20,12 +19,20 @@ class SplitterController extends Controller
     {
     }
 
-    public function show(string $server): View
+    /**
+     * Ya no existe una pagina completa propia para /server/{id}/serversplitter:
+     * una carga real (F5, marcador, pestana nueva) no puede "continuar" dentro
+     * de la SPA de React, tiene que arrancar de cero. Por eso esto redirige a
+     * la pagina normal del servidor con un aviso en la URL (?ss=1); en cuanto
+     * React termina de montar esa pagina, serversplitter-inject.js detecta el
+     * aviso y sustituye el contenido por el fragmento de ServerSplitter, sin
+     * pasar nunca por una pagina con un diseno distinto al del panel.
+     */
+    public function show(string $server): RedirectResponse
     {
         $parent = $this->resolveServer($server);
-        [$view, $data] = $this->pageFor($parent);
 
-        return view($view, $data);
+        return redirect(url('/server/' . $parent->uuidShort) . '?ss=1');
     }
 
     /**
@@ -133,15 +140,16 @@ class SplitterController extends Controller
         try {
             $child = $this->splitter->createSplit($parent, $this->user(), $data);
         } catch (SplitterException $e) {
-            return $this->back($parent)->with('serversplitter:error', $e->getMessage());
+            return $this->back($parent, 'error', $e->getMessage());
         } catch (\Throwable $e) {
             report($e);
 
-            return $this->back($parent)->with('serversplitter:error', 'No se pudo crear la division: ' . $e->getMessage());
+            return $this->back($parent, 'error', 'No se pudo crear la division: ' . $e->getMessage());
         }
 
-        return $this->back($parent)->with(
-            'serversplitter:success',
+        return $this->back(
+            $parent,
+            'ok',
             sprintf('Division "%s" creada. Se esta instalando en el nodo.', $child->name)
         );
     }
@@ -157,25 +165,37 @@ class SplitterController extends Controller
             ->first();
 
         if ($model === null) {
-            return $this->back($parent)->with('serversplitter:error', 'Esa division no pertenece a este servidor.');
+            return $this->back($parent, 'error', 'Esa division no pertenece a este servidor.');
         }
 
         try {
             $this->splitter->deleteSplit($model, $this->user());
         } catch (SplitterException $e) {
-            return $this->back($parent)->with('serversplitter:error', $e->getMessage());
+            return $this->back($parent, 'error', $e->getMessage());
         } catch (\Throwable $e) {
             report($e);
 
-            return $this->back($parent)->with('serversplitter:error', 'No se pudo eliminar la division: ' . $e->getMessage());
+            return $this->back($parent, 'error', 'No se pudo eliminar la division: ' . $e->getMessage());
         }
 
-        return $this->back($parent)->with('serversplitter:success', 'Division eliminada y recursos devueltos.');
+        return $this->back($parent, 'ok', 'Division eliminada y recursos devueltos.');
     }
 
-    protected function back(Server $server): RedirectResponse
+    /**
+     * Redirige de vuelta a la pagina del servidor tras un envio de
+     * formulario, con el resultado codificado en la URL en vez de en la
+     * sesion: como show() ya no renderiza nada por si mismo (redirige a su
+     * vez a /server/{id} para que la SPA la sirva, ver show()), un flash de
+     * sesion normal no sobreviviria ambos saltos. serversplitter-inject.js
+     * lee ss_ok/ss_error de la URL al auto-abrir el fragmento.
+     */
+    protected function back(Server $server, string $status, string $message): RedirectResponse
     {
-        return redirect()->route('serversplitter.show', ['server' => $server->uuidShort]);
+        $param = $status === 'error' ? 'ss_error' : 'ss_ok';
+
+        $query = http_build_query(['ss' => 1, $param => $message]);
+
+        return redirect(url('/server/' . $server->uuidShort) . '?' . $query);
     }
 
     protected function user(): User
