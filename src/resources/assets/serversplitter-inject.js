@@ -38,7 +38,7 @@
     var pending = false;
 
     /**
-     * Cache por servidor del resultado de /serversplitter/<id>/availability:
+     * Cache por servidor del resultado de /server/<id>/serversplitter/availability:
      * true (mostrar), false (ocultar) o 'pending' mientras se resuelve. Solo se
      * consulta una vez por servidor y por carga de pagina.
      */
@@ -204,7 +204,7 @@
 
         availability[identifier] = 'pending';
 
-        window.fetch('/serversplitter/' + encodeURIComponent(identifier) + '/availability', {
+        window.fetch('/server/' + encodeURIComponent(identifier) + '/serversplitter/availability', {
             credentials: 'same-origin',
             headers: { Accept: 'application/json' }
         }).then(function (response) {
@@ -231,7 +231,7 @@
     }
 
     function hrefFor(identifier) {
-        return links[identifier] || '/serversplitter/' + identifier;
+        return links[identifier] || '/server/' + identifier + '/serversplitter';
     }
 
     function build(template, identifier) {

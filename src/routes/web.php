@@ -15,24 +15,37 @@ Route::middleware(['web'])
     ->name('serversplitter.asset');
 
 /*
- * Rutas de cliente: /serversplitter
+ * Listado de servidores divisibles del usuario (no cuelga de ningun servidor
+ * concreto, asi que se queda en /serversplitter).
  */
 Route::middleware(['web', 'auth'])
-    ->prefix('serversplitter')
+    ->get('serversplitter', [SplitterController::class, 'index'])
+    ->name('serversplitter.index');
+
+/*
+ * Rutas de cliente para un servidor concreto: /server/{server}/serversplitter
+ *
+ * Cuelgan de la misma ruta base que usa el panel de cliente (/server/{id}/...)
+ * para que la URL sea coherente con el resto de pestanas del servidor. Sigue
+ * siendo una pagina Blade aparte (recarga completa al navegar): sin acceso al
+ * codigo del tema de React no hay forma de montar un componente de verdad
+ * dentro de la SPA.
+ */
+Route::middleware(['web', 'auth'])
+    ->prefix('server/{server}/serversplitter')
     ->name('serversplitter.')
     ->group(function () {
-        Route::get('/', [SplitterController::class, 'index'])->name('index');
-        Route::get('/{server}/availability', [SplitterController::class, 'availability'])
+        Route::get('/availability', [SplitterController::class, 'availability'])
             ->middleware('throttle:60,1')
             ->name('availability');
-        Route::get('/{server}', [SplitterController::class, 'show'])->name('show');
+        Route::get('/', [SplitterController::class, 'show'])->name('show');
 
         // Limite mas estricto en las acciones que crean o destruyen servidores:
         // evita que un usuario (o un script) sature el nodo a base de clics.
-        Route::post('/{server}/splits', [SplitterController::class, 'store'])
+        Route::post('/splits', [SplitterController::class, 'store'])
             ->middleware('throttle:10,1')
             ->name('store');
-        Route::delete('/{server}/splits/{split}', [SplitterController::class, 'destroy'])
+        Route::delete('/splits/{split}', [SplitterController::class, 'destroy'])
             ->middleware('throttle:20,1')
             ->name('destroy');
     });

@@ -7,7 +7,8 @@ con parte de los recursos del principal y el padre se redimensiona automaticamen
 Al eliminar una division, los recursos vuelven al padre.
 
 - Panel de administracion propio (`/admin/serversplitter`) con configuracion, reglas por egg y limites por servidor.
-- Interfaz de cliente independiente (`/serversplitter`), responsive y accesible.
+- Interfaz de cliente independiente: listado en `/serversplitter` y gestion por servidor en
+  `/server/{id}/serversplitter`, responsive y accesible.
 - API con clave propia para **WHMCS / Paymenter** (ampliar recursos, fijar limites, purgar divisiones).
 - Operaciones **atomicas**: bloqueo pesimista por servidor y rollback si el padre no puede redimensionarse.
 

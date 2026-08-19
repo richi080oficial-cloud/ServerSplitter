@@ -27,8 +27,9 @@ use Symfony\Component\HttpFoundation\Response;
  *   - si la marca ya esta presente, no se duplica.
  *
  * El script decide por si mismo si hay algo que mostrar consultando
- * /serversplitter/<id>/availability, asi que inyectarlo en todas las paginas de
- * cliente no expone nada: en servidores ajenos o en divisiones no anade enlace.
+ * /server/<id>/serversplitter/availability, asi que inyectarlo en todas las
+ * paginas de cliente no expone nada: en servidores ajenos o en divisiones no
+ * anade enlace.
  */
 class ClientPanelScript
 {
@@ -99,7 +100,13 @@ class ClientPanelScript
             return false;
         }
 
-        if ($request->is('admin', 'admin/*', 'api/*', 'serversplitter', 'serversplitter/*', 'extensions/*')) {
+        if ($request->is(
+            'admin', 'admin/*',
+            'api/*',
+            'serversplitter', 'serversplitter/*',
+            'server/*/serversplitter', 'server/*/serversplitter/*',
+            'extensions/*'
+        )) {
             return false;
         }
 
