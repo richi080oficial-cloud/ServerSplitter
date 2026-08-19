@@ -23,14 +23,34 @@ class ServerSplitterServiceProvider extends ServiceProvider
 
         $this->app->singleton(LockManager::class);
         $this->app->singleton(ResourceCalculator::class);
+
+        // IMPORTANTE: las rutas se cargan aqui, en register(), y no en boot().
+        //
+        // El panel de cliente de Pterodactyl es una SPA de React servida por
+        // una ruta "catch-all" del propio nucleo (algo como Route::get('/{react}', ...))
+        // registrada en el boot() de su propio RouteServiceProvider. Laravel
+        // resuelve cada peticion con la PRIMERA ruta que coincide, en el
+        // orden en que se registraron: si esa ruta catch-all se registra
+        // antes que las nuestras, se traga peticiones a /serversplitter y a
+        // /extensions/serversplitter/* devolviendo el HTML de la SPA en vez
+        // de nuestras vistas o nuestro JS/CSS (lo que a su vez impide que el
+        // <script> inyectado en el panel de cliente llegue a ejecutarse
+        // nunca, porque el navegador recibe HTML donde esperaba JavaScript).
+        //
+        // El register() de TODOS los providers se ejecuta antes que el
+        // boot() de CUALQUIER provider, sin importar el orden en el array
+        // "providers" de config/app.php o bootstrap/providers.php. Cargando
+        // aqui nuestras rutas nos garantizamos quedar registrados antes que
+        // el catch-all del panel, sin depender de en que posicion quedo
+        // nuestro ServiceProvider al registrarse.
+        $this->loadRoutesFrom(__DIR__ . '/../routes/web.php');
+        $this->loadRoutesFrom(__DIR__ . '/../routes/api.php');
     }
 
     public function boot(): void
     {
         $this->loadViewsFrom(__DIR__ . '/../resources/views', 'serversplitter');
         $this->loadMigrationsFrom(__DIR__ . '/../database/migrations');
-        $this->loadRoutesFrom(__DIR__ . '/../routes/web.php');
-        $this->loadRoutesFrom(__DIR__ . '/../routes/api.php');
 
         // Publica assets estaticos a public/extensions/serversplitter para que
         // se sirvan directamente sin pasar por Laravel (evita problemas de MIME type).
