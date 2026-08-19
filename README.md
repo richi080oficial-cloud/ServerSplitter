@@ -81,19 +81,20 @@ El modo `distribute` exige limites reales en memoria y disco.
 
 ## Eleccion de egg por servidor
 
-Ademas de las reglas globales de "Reglas de eggs" (que eggs existen y con que minimos/maximos),
-cada servidor padre admite un ajuste propio: **si su propietario puede elegir el egg de sus
-divisiones o no**. Se edita en `/admin/servers/view/{id}` &rarr; pestana *Build Configuration*,
-en el bloque ServerSplitter (campo "Eleccion de egg"):
+Ademas de las reglas globales de "Reglas de eggs" (que eggs existen en todo el panel y con que
+minimos/maximos), cada servidor padre admite su propio modo de eleccion de egg para sus
+divisiones. Se edita en `/admin/servers/view/{id}` &rarr; pestana *Build Configuration*, en el
+bloque ServerSplitter ("Eleccion de egg para las divisiones"):
 
-| Valor | Comportamiento |
+| Modo | Comportamiento |
 | --- | --- |
-| Usar valor global (vacio) | El propietario elige egg entre los permitidos por las reglas globales (comportamiento historico). |
-| Si, puede elegir egg | Igual que el valor global, fijado explicitamente para este servidor. |
-| No: hereda el egg del padre | El propietario **no ve ningun selector**: cada division que cree usa siempre, de forma forzada, el mismo egg que ya tiene el servidor padre. |
+| **No seleccionar** (predeterminado) | El propietario **no ve ningun selector**: cada division que cree usa siempre, de forma forzada, el mismo egg que ya tiene el servidor padre. Es el comportamiento por defecto de todo servidor sin configurar. |
+| **Todos los eggs permitidos globalmente** | El propietario elige entre los eggs marcados como "permitido" en la pestana "Reglas de eggs" (o cualquier egg, si el ajuste global "Permitir eggs sin regla definida" esta activo). |
+| **Eggs concretos** | El admin elige, servidor por servidor, una lista concreta de eggs (por ejemplo: para este servidor, solo puede cambiar a `webhosting` o `minecraft`, aunque el panel tenga tambien `rust` configurado). El propietario solo ve esos eggs en el desplegable. |
 
-Cuando esta en "No", las reglas de "eggs permitidos/bloqueados" no aplican a esa division (no hay
-eleccion que filtrar: siempre es el mismo egg que el padre).
+En modo "Eggs concretos" la lista de "Reglas de eggs" global no filtra nada mas: la lista que
+eligio el admin para ese servidor es la autoridad final. En modo "No seleccionar" tampoco se
+consulta ninguna lista: la division simplemente copia el egg que el padre ya tenia instalado.
 
 ## Protecciones incluidas
 

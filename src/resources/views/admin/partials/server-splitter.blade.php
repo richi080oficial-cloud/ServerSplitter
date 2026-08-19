@@ -112,12 +112,15 @@
                             </td>
                         </tr>
                         <tr>
-                            <td><strong>Puede elegir egg:</strong></td>
+                            <td><strong>Eleccion de egg:</strong></td>
                             <td>
-                                @if ($ssLimit?->allow_egg_choice === null)
-                                    <span class="text-muted">Global (permitido)</span>
-                                @elseif ($ssLimit->allow_egg_choice)
-                                    <span class="label label-success">Si</span>
+                                @php($ssEggModeNow = $ssLimit?->eggChoiceMode() ?? 'none')
+                                @if ($ssEggModeNow === 'all')
+                                    <span class="label label-success">Todos los permitidos</span>
+                                @elseif ($ssEggModeNow === 'defined')
+                                    <span class="label label-info">
+                                        Concretos ({{ count($ssLimit?->allowedEggIds() ?? []) }})
+                                    </span>
                                 @else
                                     <span class="label label-warning">No, hereda el del padre</span>
                                 @endif

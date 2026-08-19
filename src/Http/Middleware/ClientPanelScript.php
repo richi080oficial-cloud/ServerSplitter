@@ -113,7 +113,7 @@ class ClientPanelScript
      */
     protected function looksLikeClientPanel(string $html): bool
     {
-        return preg_match('/id\s*=\s*(["\'])(app|modal-portal)\1/i', $html) === 1;
+        return preg_match('/id\s*=\s*(["\'])(app|modal-portal|root)\1/i', $html) === 1;
     }
 
     /** Etiqueta <script> con defer: no bloquea el arranque de React. */

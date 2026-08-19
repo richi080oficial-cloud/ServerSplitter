@@ -56,14 +56,12 @@ class SplitterController extends Controller
             ]);
         }
 
-        $canChooseEgg = $this->splitter->canChooseEgg($parent);
-
         return view('serversplitter::client.index', [
             'server' => $parent,
             'state' => $this->splitter->state($parent),
             'settings' => $this->splitter->settings(),
-            'eggs' => $canChooseEgg ? $this->splitter->availableEggs() : collect(),
-            'canChooseEgg' => $canChooseEgg,
+            'eggs' => $this->splitter->availableEggsFor($parent),
+            'canChooseEgg' => $this->splitter->canChooseEgg($parent),
         ]);
     }
 

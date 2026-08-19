@@ -52,9 +52,14 @@ class AdminServerLimits
             return $response;
         }
 
-        $eggChoice = $this->eggChoice($request);
+        $eggMode = $this->eggChoiceMode($request);
+        $allowedEggIds = $this->allowedEggIds($request);
 
-        if ($payload === [] && $eggChoice === null) {
+        $isDefault = $payload === []
+            && $eggMode === SplitterLimit::EGG_MODE_NONE
+            && $allowedEggIds === [];
+
+        if ($isDefault) {
             SplitterLimit::query()->where('server_id', $serverId)->delete();
 
             return $response;
@@ -67,7 +72,10 @@ class AdminServerLimits
             $limit->{$field} = $payload[$field] ?? null;
         }
 
-        $limit->allow_egg_choice = $eggChoice;
+        $limit->egg_choice_mode = $eggMode;
+        $limit->allowed_egg_ids = $eggMode === SplitterLimit::EGG_MODE_DEFINED && $allowedEggIds !== []
+            ? implode(',', $allowedEggIds)
+            : null;
 
         $limit->save();
 
@@ -132,18 +140,35 @@ class AdminServerLimits
     }
 
     /**
-     * Lee serversplitter[allow_egg_choice]: '1' => true, '0' => false,
-     * cualquier otra cosa (vacio, ausente) => null (usar el valor global).
+     * Lee serversplitter[egg_choice_mode]. Cualquier valor que no sea 'all' o
+     * 'defined' se trata como 'none' (el predeterminado: la division hereda
+     * el egg del padre).
      */
-    protected function eggChoice(Request $request): ?bool
+    protected function eggChoiceMode(Request $request): string
     {
-        $raw = $request->input('serversplitter.allow_egg_choice');
+        $raw = (string) $request->input('serversplitter.egg_choice_mode', '');
 
-        return match ((string) $raw) {
-            '1' => true,
-            '0' => false,
-            default => null,
-        };
+        return in_array($raw, [SplitterLimit::EGG_MODE_ALL, SplitterLimit::EGG_MODE_DEFINED], true)
+            ? $raw
+            : SplitterLimit::EGG_MODE_NONE;
+    }
+
+    /**
+     * IDs de egg marcados en el multi-select serversplitter[allowed_egg_ids][].
+     *
+     * @return array<int, int>
+     */
+    protected function allowedEggIds(Request $request): array
+    {
+        $raw = $request->input('serversplitter.allowed_egg_ids', []);
+
+        if (!is_array($raw)) {
+            return [];
+        }
+
+        $ids = array_map('intval', $raw);
+
+        return array_values(array_unique(array_filter($ids, fn (int $id) => $id > 0)));
     }
 
     /**

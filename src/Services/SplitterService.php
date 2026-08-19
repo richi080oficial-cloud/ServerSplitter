@@ -80,22 +80,26 @@ class SplitterService
     }
 
     /**
-     * True si el propietario puede elegir el egg de sus divisiones para este
-     * servidor. Si es false, cada division creada hereda siempre el mismo
-     * egg que el servidor padre (el propietario no ve ningun selector).
-     *
-     * Por defecto (sin limite propio, o limite con el campo vacio) se puede
-     * elegir: es el comportamiento historico de la extension.
+     * Modo de eleccion de egg para las divisiones de este servidor:
+     *   none    (predeterminado, siempre que no se configure lo contrario)
+     *           la division hereda el mismo egg que el padre, sin selector.
+     *   all     el propietario elige entre los eggs permitidos globalmente
+     *           ("Reglas de eggs").
+     *   defined el propietario elige solo entre los eggs que el admin ha
+     *           marcado para este servidor en concreto.
+     */
+    public function eggChoiceMode(Server $parent): string
+    {
+        return $this->limitFor($parent)?->eggChoiceMode() ?? SplitterLimit::EGG_MODE_NONE;
+    }
+
+    /**
+     * True si el propietario ve algun selector de egg al crear una division
+     * (es decir, el modo no es 'none').
      */
     public function canChooseEgg(Server $parent): bool
     {
-        $limit = $this->limitFor($parent);
-
-        if ($limit !== null && $limit->allow_egg_choice !== null) {
-            return (bool) $limit->allow_egg_choice;
-        }
-
-        return true;
+        return $this->eggChoiceMode($parent) !== SplitterLimit::EGG_MODE_NONE;
     }
 
     /**
@@ -149,6 +153,37 @@ class SplitterService
     }
 
     /**
+     * Eggs que el propietario de $parent puede elegir para una nueva
+     * division, segun el modo configurado para ese servidor concreto.
+     * Vacio si el modo es 'none' (no hay nada que elegir).
+     */
+    public function availableEggsFor(Server $parent): Collection
+    {
+        $mode = $this->eggChoiceMode($parent);
+
+        if ($mode === SplitterLimit::EGG_MODE_NONE) {
+            return collect();
+        }
+
+        if ($mode === SplitterLimit::EGG_MODE_ALL) {
+            return $this->availableEggs();
+        }
+
+        // defined: solo los eggs que el admin marco para este servidor.
+        $allowedIds = $this->limitFor($parent)?->allowedEggIds() ?? [];
+
+        if ($allowedIds === []) {
+            return collect();
+        }
+
+        return Egg::query()
+            ->with('nest')
+            ->whereIn('id', $allowedIds)
+            ->orderBy('name')
+            ->get();
+    }
+
+    /**
      * Crea una division del servidor padre.
      *
      * @param array{egg_id:int, name?:string|null, memory?:int|null, disk?:int|null, cpu?:int|null} $data
@@ -174,13 +209,15 @@ class SplitterService
                 throw new SplitterException(sprintf('Has alcanzado el limite de divisiones para este servidor (%d).', $max));
             }
 
-            $canChooseEgg = $this->canChooseEgg($parent);
+            $eggMode = $this->eggChoiceMode($parent);
 
-            // Si el admin ha desactivado la eleccion de egg para este servidor,
-            // se ignora por completo lo que venga en $data['egg_id'] (aunque
-            // alguien lo manipule a mano) y la division hereda siempre el
-            // mismo egg que el padre ya tiene instalado.
-            $eggId = $canChooseEgg ? (int) ($data['egg_id'] ?? 0) : (int) $parent->egg_id;
+            // Modo 'none' (predeterminado): se ignora por completo lo que
+            // venga en $data['egg_id'] (aunque alguien lo manipule a mano) y
+            // la division hereda siempre el mismo egg que el padre ya tiene
+            // instalado.
+            $eggId = $eggMode === SplitterLimit::EGG_MODE_NONE
+                ? (int) $parent->egg_id
+                : (int) ($data['egg_id'] ?? 0);
 
             $egg = Egg::query()->with('variables')->find($eggId);
             if ($egg === null) {
@@ -189,17 +226,22 @@ class SplitterService
 
             $rule = SplitterEggRule::query()->where('egg_id', $egg->id)->first();
 
-            if ($canChooseEgg) {
+            if ($eggMode === SplitterLimit::EGG_MODE_ALL) {
                 if ($rule === null && !$settings['allow_unlisted_eggs']) {
                     throw new SplitterException('Ese egg no esta habilitado para divisiones.');
                 }
                 if ($rule !== null && !$rule->allowed) {
                     throw new SplitterException('Ese egg no esta habilitado para divisiones.');
                 }
+            } elseif ($eggMode === SplitterLimit::EGG_MODE_DEFINED) {
+                $allowedIds = $this->limitFor($parent)?->allowedEggIds() ?? [];
+
+                if (!in_array($egg->id, $allowedIds, true)) {
+                    throw new SplitterException('Ese egg no esta en la lista permitida para este servidor.');
+                }
             }
-            // Si no puede elegir, se hereda el egg del padre sin pasar por las
-            // reglas de "eggs permitidos": esas reglas gobiernan la eleccion
-            // del usuario, no el egg que el padre ya tenia en marcha.
+            // Modo 'none': se hereda el egg del padre sin pasar por ninguna
+            // lista de permitidos (el padre ya lo tenia instalado).
 
             $parentLimits = $this->calculator->limitsOf($parent);
             $childrenLimits = $children->map(fn (ServerSplit $s) => $this->calculator->limitsOf($s->server))->all();

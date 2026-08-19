@@ -228,12 +228,12 @@
         <ul class="nav nav-tabs" id="ss-tabs" role="tablist">
             <li class="active">
                 <a href="#ss-tab-general" data-toggle="tab" role="tab" aria-controls="ss-tab-general" aria-selected="true">
-                    <i class="fa fa-sliders"></i> General
+                    <i class="fa fa-cogs"></i> General
                 </a>
             </li>
             <li>
                 <a href="#ss-tab-eggs" data-toggle="tab" role="tab" aria-controls="ss-tab-eggs" aria-selected="false">
-                    <i class="fa fa-egg"></i> Reglas de eggs <span class="badge">{{ $rules->count() }}</span>
+                    <i class="fa fa-flask"></i> Reglas de eggs <span class="badge">{{ $rules->count() }}</span>
                 </a>
             </li>
             <li>
