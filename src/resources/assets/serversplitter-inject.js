@@ -38,6 +38,19 @@
     var pending = false;
 
     /**
+     * Log con prefijo propio, visible en el filtro "Default" de la consola
+     * del navegador (console.debug queda oculto ahi en algunos navegadores
+     * bajo el filtro "Verbose", asi que se usa console.log a proposito).
+     */
+    function log() {
+        if (window.console && typeof window.console.log === 'function') {
+            var args = Array.prototype.slice.call(arguments);
+            args.unshift('[ServerSplitter]');
+            window.console.log.apply(window.console, args);
+        }
+    }
+
+    /**
      * Cache por servidor del resultado de /server/<id>/serversplitter/availability:
      * true (mostrar), false (ocultar) o 'pending' mientras se resuelve. Solo se
      * consulta una vez por servidor y por carga de pagina.
@@ -175,15 +188,52 @@
             if (sample !== null) {
                 return { container: group, sample: sample };
             }
+
+            log('se encontro ' + GROUP_SELECTOR + ' pero sin ningun <a> dentro para usar de plantilla');
+        } else {
+            log(GROUP_SELECTOR + ' no existe en esta pagina, probando la barra de navegacion clasica');
         }
 
-        return legacyNavigation(identifier);
+        var legacy = legacyNavigation(identifier);
+
+        if (legacy === null) {
+            log('tampoco se encontro a[href="/server/' + identifier + '"] con hermanos');
+        }
+
+        return legacy;
     }
 
     function detach(node) {
         if (node && node.parentNode) {
             node.parentNode.removeChild(node);
         }
+    }
+
+    /**
+     * Ultimo recurso: si no se encuentra ningun hueco reconocible en el
+     * sidebar del tema (ni el grupo de addons ni la barra de navegacion
+     * clasica), se muestra un enlace flotante fijo en la esquina. No usa
+     * ninguna clase del tema ni de serversplitter.css: todos los estilos van
+     * inline, asi que aparece si o si mientras haya disponibilidad. Es
+     * deliberadamente visible (no una solucion final) para que quede claro
+     * que el backend y el script funcionan, aunque la integracion visual con
+     * el sidebar del tema necesite un selector distinto.
+     */
+    function buildFloatingLink(identifier) {
+        var link = document.createElement('a');
+
+        link.setAttribute(ATTR, identifier);
+        link.setAttribute('data-serversplitter-fallback', '1');
+        link.href = hrefFor(identifier);
+        link.textContent = 'ServerSplitter: Divisiones';
+        link.style.cssText = [
+            'position:fixed', 'right:16px', 'bottom:16px', 'z-index:2147483647',
+            'background:#2563eb', 'color:#fff', 'padding:10px 16px',
+            'border-radius:8px', 'font:600 13px/1.2 system-ui,sans-serif',
+            'text-decoration:none', 'box-shadow:0 4px 14px rgba(0,0,0,.35)'
+        ].join(';');
+
+        return link;
     }
 
     /**
@@ -215,15 +265,17 @@
             return response.json();
         }).then(function (payload) {
             availability[identifier] = !!(payload && payload.available);
+            log('respuesta de availability para ' + identifier + ':', payload);
 
             if (payload && typeof payload.url === 'string' && payload.url !== '') {
                 links[identifier] = payload.url;
             }
 
             schedule();
-        }).catch(function () {
+        }).catch(function (error) {
             // Sesion caducada, extension desinstalada o red caida: no se
             // inyecta nada y el panel sigue funcionando igual.
+            log('fallo la peticion de availability para ' + identifier + ':', error);
             availability[identifier] = false;
         });
 
@@ -298,7 +350,17 @@
         var identifier = currentIdentifier();
         var existing = document.querySelector('[' + ATTR + ']');
 
-        if (identifier === null || isAvailable(identifier) !== true) {
+        if (identifier === null) {
+            log('no estamos en una pagina de servidor (pathname: ' + window.location.pathname + ')');
+            detach(existing);
+
+            return;
+        }
+
+        var available = isAvailable(identifier);
+
+        if (available !== true) {
+            log('servidor ' + identifier + ': disponibilidad =', available);
             detach(existing);
 
             return;
@@ -307,17 +369,31 @@
         var target = targetFor(identifier);
 
         if (target === null) {
+            log(
+                'servidor ' + identifier + ': disponible, pero no se encontro ningun hueco en el sidebar ' +
+                '(ni ' + GROUP_SELECTOR + ' ni la barra de navegacion clasica). Se muestra el enlace flotante ' +
+                'de emergencia; manda una captura del sidebar completo (Elements de DevTools) para ajustar el selector.'
+            );
+
+            if (existing !== null && existing.hasAttribute('data-serversplitter-fallback')) {
+                return;
+            }
+
             detach(existing);
+            document.body.appendChild(buildFloatingLink(identifier));
 
             return;
         }
+
+        log('servidor ' + identifier + ': insertando en', target.container);
 
         var template = templateFrom(target.sample);
 
         // Se reutiliza el enlace ya inyectado salvo que haya cambiado de
         // servidor o que React haya reconstruido el contenedor.
         if (existing !== null) {
-            if (existing.getAttribute(ATTR) === identifier
+            if (!existing.hasAttribute('data-serversplitter-fallback')
+                && existing.getAttribute(ATTR) === identifier
                 && existing.parentNode === target.container) {
                 var href = hrefFor(identifier);
 
@@ -369,6 +445,7 @@
     }
 
     function start() {
+        log('script cargado y arrancado en', window.location.pathname);
         schedule();
 
         if (typeof window.MutationObserver === 'function') {
