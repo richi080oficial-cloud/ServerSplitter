@@ -3,6 +3,7 @@
 namespace Pterodactyl\Extensions\ServerSplitter\Services;
 
 use Closure;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Str;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -40,30 +41,41 @@ class LockManager
         $token = Str::random(40);
         $now = Carbon::now();
 
-        DB::transaction(function () use ($serverId, $token, $ttl, $now) {
-            $existing = DB::table(self::TABLE)
-                ->where('server_id', $serverId)
-                ->lockForUpdate()
-                ->first();
+        try {
+            DB::transaction(function () use ($serverId, $token, $ttl, $now) {
+                $existing = DB::table(self::TABLE)
+                    ->where('server_id', $serverId)
+                    ->lockForUpdate()
+                    ->first();
 
-            if ($existing !== null) {
-                if (Carbon::parse($existing->expires_at)->greaterThan($now)) {
-                    throw new SplitterException(
-                        'Ya hay una operacion en curso sobre este servidor. Espera unos segundos y vuelve a intentarlo.',
-                        409
-                    );
+                if ($existing !== null) {
+                    if (Carbon::parse($existing->expires_at)->greaterThan($now)) {
+                        throw new SplitterException(
+                            'Ya hay una operacion en curso sobre este servidor. Espera unos segundos y vuelve a intentarlo.',
+                            409
+                        );
+                    }
+
+                    DB::table(self::TABLE)->where('server_id', $serverId)->delete();
                 }
 
-                DB::table(self::TABLE)->where('server_id', $serverId)->delete();
-            }
-
-            DB::table(self::TABLE)->insert([
-                'server_id' => $serverId,
-                'token' => $token,
-                'expires_at' => $now->copy()->addSeconds($ttl),
-                'created_at' => $now,
-            ]);
-        });
+                DB::table(self::TABLE)->insert([
+                    'server_id' => $serverId,
+                    'token' => $token,
+                    'expires_at' => $now->copy()->addSeconds($ttl),
+                    'created_at' => $now,
+                ]);
+            });
+        } catch (QueryException $e) {
+            // Dos peticiones concurrentes pasaron el SELECT ... FOR UPDATE casi
+            // a la vez (por ejemplo panel + WHMCS en el mismo instante) y
+            // chocan contra el unique(server_id) al insertar. Se traduce a un
+            // error de negocio en vez de dejar escapar la excepcion de SQL.
+            throw new SplitterException(
+                'Ya hay una operacion en curso sobre este servidor. Espera unos segundos y vuelve a intentarlo.',
+                409
+            );
+        }
 
         return $token;
     }

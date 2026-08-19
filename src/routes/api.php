@@ -8,7 +8,7 @@ use Pterodactyl\Extensions\ServerSplitter\Http\Controllers\Api\IntegrationContro
  * API de integracion (WHMCS / Paymenter).
  * Prefijo propio para no interferir con la Application API de Pterodactyl.
  */
-Route::middleware(['api', SplitterApiKey::class])
+Route::middleware(['api', 'throttle:120,1', SplitterApiKey::class])
     ->prefix('api/serversplitter')
     ->name('serversplitter.api.')
     ->group(function () {

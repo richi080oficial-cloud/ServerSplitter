@@ -80,6 +80,25 @@ class SplitterService
     }
 
     /**
+     * True si el propietario puede elegir el egg de sus divisiones para este
+     * servidor. Si es false, cada division creada hereda siempre el mismo
+     * egg que el servidor padre (el propietario no ve ningun selector).
+     *
+     * Por defecto (sin limite propio, o limite con el campo vacio) se puede
+     * elegir: es el comportamiento historico de la extension.
+     */
+    public function canChooseEgg(Server $parent): bool
+    {
+        $limit = $this->limitFor($parent);
+
+        if ($limit !== null && $limit->allow_egg_choice !== null) {
+            return (bool) $limit->allow_egg_choice;
+        }
+
+        return true;
+    }
+
+    /**
      * Numero maximo de divisiones permitidas para un servidor padre.
      *
      * El valor 0 significa "ilimitado" (misma convencion que Pterodactyl usa
@@ -155,18 +174,32 @@ class SplitterService
                 throw new SplitterException(sprintf('Has alcanzado el limite de divisiones para este servidor (%d).', $max));
             }
 
-            $egg = Egg::query()->with('variables')->find((int) ($data['egg_id'] ?? 0));
+            $canChooseEgg = $this->canChooseEgg($parent);
+
+            // Si el admin ha desactivado la eleccion de egg para este servidor,
+            // se ignora por completo lo que venga en $data['egg_id'] (aunque
+            // alguien lo manipule a mano) y la division hereda siempre el
+            // mismo egg que el padre ya tiene instalado.
+            $eggId = $canChooseEgg ? (int) ($data['egg_id'] ?? 0) : (int) $parent->egg_id;
+
+            $egg = Egg::query()->with('variables')->find($eggId);
             if ($egg === null) {
                 throw new SplitterException('El egg seleccionado no existe.');
             }
 
             $rule = SplitterEggRule::query()->where('egg_id', $egg->id)->first();
-            if ($rule === null && !$settings['allow_unlisted_eggs']) {
-                throw new SplitterException('Ese egg no esta habilitado para divisiones.');
+
+            if ($canChooseEgg) {
+                if ($rule === null && !$settings['allow_unlisted_eggs']) {
+                    throw new SplitterException('Ese egg no esta habilitado para divisiones.');
+                }
+                if ($rule !== null && !$rule->allowed) {
+                    throw new SplitterException('Ese egg no esta habilitado para divisiones.');
+                }
             }
-            if ($rule !== null && !$rule->allowed) {
-                throw new SplitterException('Ese egg no esta habilitado para divisiones.');
-            }
+            // Si no puede elegir, se hereda el egg del padre sin pasar por las
+            // reglas de "eggs permitidos": esas reglas gobiernan la eleccion
+            // del usuario, no el egg que el padre ya tenia en marcha.
 
             $parentLimits = $this->calculator->limitsOf($parent);
             $childrenLimits = $children->map(fn (ServerSplit $s) => $this->calculator->limitsOf($s->server))->all();
@@ -471,11 +504,11 @@ class SplitterService
         // el minimo de la regla del egg y, en su defecto, el minimo global.
         $disk = isset($data['disk']) && $data['disk'] !== ''
             ? (int) $data['disk']
-            : (int) ($rule?->min_disk ?: $settings['min_disk']);
+            : (int) ($rule?->min_disk ?? $settings['min_disk']);
 
         $cpu = isset($data['cpu']) && $data['cpu'] !== ''
             ? (int) $data['cpu']
-            : (int) ($rule?->min_cpu ?: $settings['min_cpu']);
+            : (int) ($rule?->min_cpu ?? $settings['min_cpu']);
 
         return ['memory' => $memory, 'disk' => $disk, 'cpu' => $cpu];
     }
@@ -489,8 +522,10 @@ class SplitterService
         $labels = ['memory' => 'memoria (MiB)', 'disk' => 'disco (MiB)', 'cpu' => 'CPU (%)'];
 
         foreach (ResourceCalculator::KEYS as $key) {
-            $min = (int) ($rule?->{'min_' . $key} ?: $settings['min_' . $key]);
-            $max = (int) ($rule?->{'max_' . $key} ?: 0);
+            // ?? y no ?: : una regla de egg con el minimo puesto a 0 significa
+            // "sin minimo para este egg" y no debe caer al valor global.
+            $min = (int) ($rule?->{'min_' . $key} ?? $settings['min_' . $key]);
+            $max = (int) ($rule?->{'max_' . $key} ?? 0);
 
             if ($limits[$key] < $min) {
                 throw new SplitterException(sprintf('El minimo de %s para una division es %d.', $labels[$key], $min));

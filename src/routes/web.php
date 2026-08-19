@@ -22,10 +22,19 @@ Route::middleware(['web', 'auth'])
     ->name('serversplitter.')
     ->group(function () {
         Route::get('/', [SplitterController::class, 'index'])->name('index');
-        Route::get('/{server}/availability', [SplitterController::class, 'availability'])->name('availability');
+        Route::get('/{server}/availability', [SplitterController::class, 'availability'])
+            ->middleware('throttle:60,1')
+            ->name('availability');
         Route::get('/{server}', [SplitterController::class, 'show'])->name('show');
-        Route::post('/{server}/splits', [SplitterController::class, 'store'])->name('store');
-        Route::delete('/{server}/splits/{split}', [SplitterController::class, 'destroy'])->name('destroy');
+
+        // Limite mas estricto en las acciones que crean o destruyen servidores:
+        // evita que un usuario (o un script) sature el nodo a base de clics.
+        Route::post('/{server}/splits', [SplitterController::class, 'store'])
+            ->middleware('throttle:10,1')
+            ->name('store');
+        Route::delete('/{server}/splits/{split}', [SplitterController::class, 'destroy'])
+            ->middleware('throttle:20,1')
+            ->name('destroy');
     });
 
 /*

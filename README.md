@@ -79,6 +79,22 @@ Al desinstalar, los servidores hijos ya creados **no** se borran: gestionalos de
 En Pterodactyl el valor `0` significa *ilimitado*: esas claves nunca se restan ni se reparten.
 El modo `distribute` exige limites reales en memoria y disco.
 
+## Eleccion de egg por servidor
+
+Ademas de las reglas globales de "Reglas de eggs" (que eggs existen y con que minimos/maximos),
+cada servidor padre admite un ajuste propio: **si su propietario puede elegir el egg de sus
+divisiones o no**. Se edita en `/admin/servers/view/{id}` &rarr; pestana *Build Configuration*,
+en el bloque ServerSplitter (campo "Eleccion de egg"):
+
+| Valor | Comportamiento |
+| --- | --- |
+| Usar valor global (vacio) | El propietario elige egg entre los permitidos por las reglas globales (comportamiento historico). |
+| Si, puede elegir egg | Igual que el valor global, fijado explicitamente para este servidor. |
+| No: hereda el egg del padre | El propietario **no ve ningun selector**: cada division que cree usa siempre, de forma forzada, el mismo egg que ya tiene el servidor padre. |
+
+Cuando esta en "No", las reglas de "eggs permitidos/bloqueados" no aplican a esa division (no hay
+eleccion que filtrar: siempre es el mismo egg que el padre).
+
 ## Protecciones incluidas
 
 - Reserva minima garantizada al padre (`reserve_memory`, `reserve_disk`, `reserve_cpu`).
@@ -88,6 +104,12 @@ El modo `distribute` exige limites reales en memoria y disco.
 - Bloqueo en base de datos por servidor: evita que panel y WHMCS recalculen a la vez.
 - Si falla el redimensionado del padre, el hijo recien creado se elimina (sin recursos huerfanos).
 - Limites "comprados" por servidor (`max_splits`, `max_memory`, `max_disk`, `max_cpu`).
+- Limite de peticiones (`throttle`) en crear/eliminar divisiones desde el panel de cliente y en toda
+  la API de integracion, para frenar abuso o scripts descontrolados.
+- Lista blanca de IPs opcional para la API de integracion (ademas de la clave), configurable en
+  `/admin/serversplitter` > pestana General.
+- La clave de la API se compara con `password_verify` (a tiempo constante) y se guarda hasheada;
+  nunca se registra ni se puede volver a mostrar.
 
 ## API de integracion (WHMCS / Paymenter)
 

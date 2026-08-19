@@ -47,10 +47,20 @@ class AdminController extends Controller
             'reserve_disk' => 'required|integer|min:0',
             'reserve_cpu' => 'required|integer|min:0|max:100000',
             'child_name_prefix' => 'required|string|max:32',
+            'api_allowed_ips' => ['nullable', 'string', 'max:1000', function ($attribute, $value, $fail) {
+                foreach ($this->splitIps((string) $value) as $entry) {
+                    if (!$this->looksLikeIpOrCidr($entry)) {
+                        $fail("La entrada \"$entry\" no es una IP ni un rango CIDR valido.");
+
+                        return;
+                    }
+                }
+            }],
         ]);
 
         $data['enabled'] = $request->boolean('enabled');
         $data['allow_unlisted_eggs'] = $request->boolean('allow_unlisted_eggs');
+        $data['api_allowed_ips'] = implode(', ', $this->splitIps((string) ($data['api_allowed_ips'] ?? '')));
 
         SplitterSetting::write($data);
 
@@ -151,6 +161,36 @@ class AdminController extends Controller
         $user = auth()->user();
 
         return $user;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function splitIps(string $raw): array
+    {
+        return array_values(array_filter(array_map('trim', explode(',', $raw))));
+    }
+
+    protected function looksLikeIpOrCidr(string $value): bool
+    {
+        [$ip, $mask] = array_pad(explode('/', $value, 2), 2, null);
+
+        if (!filter_var($ip, FILTER_VALIDATE_IP)) {
+            return false;
+        }
+
+        if ($mask === null) {
+            return true;
+        }
+
+        if (!ctype_digit($mask)) {
+            return false;
+        }
+
+        $bits = (int) $mask;
+        $max = str_contains($ip, ':') ? 128 : 32;
+
+        return $bits >= 0 && $bits <= $max;
     }
 
     public function modes(): array

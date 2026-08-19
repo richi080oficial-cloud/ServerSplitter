@@ -56,11 +56,14 @@ class SplitterController extends Controller
             ]);
         }
 
+        $canChooseEgg = $this->splitter->canChooseEgg($parent);
+
         return view('serversplitter::client.index', [
             'server' => $parent,
             'state' => $this->splitter->state($parent),
             'settings' => $this->splitter->settings(),
-            'eggs' => $this->splitter->availableEggs(),
+            'eggs' => $canChooseEgg ? $this->splitter->availableEggs() : collect(),
+            'canChooseEgg' => $canChooseEgg,
         ]);
     }
 
@@ -102,9 +105,10 @@ class SplitterController extends Controller
     public function store(Request $request, string $server): RedirectResponse
     {
         $parent = $this->resolveServer($server);
+        $eggRule = $this->splitter->canChooseEgg($parent) ? 'required|integer' : 'nullable|integer';
 
         $data = $request->validate([
-            'egg_id' => 'required|integer',
+            'egg_id' => $eggRule,
             'name' => 'nullable|string|max:120',
             'memory' => 'nullable|integer|min:0|max:1048576',
             'disk' => 'nullable|integer|min:0|max:10485760',

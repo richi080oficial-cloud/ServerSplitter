@@ -96,7 +96,7 @@
         <section class="ss-card" aria-labelledby="ss-new">
             <h2 class="ss-card__title" id="ss-new">Crear una nueva division</h2>
 
-            @if ($eggs->isEmpty())
+            @if ($canChooseEgg && $eggs->isEmpty())
                 <p class="ss-muted">No hay plantillas (eggs) habilitadas para dividir. Contacta con el administrador.</p>
             @else
                 <form method="POST"
@@ -119,16 +119,25 @@
                                    value="{{ old('name') }}" placeholder="Se genera automaticamente si lo dejas vacio">
                         </div>
 
-                        <div class="ss-field">
-                            <label for="ss-egg-id">Plantilla (egg)</label>
-                            <select id="ss-egg-id" name="egg_id" required>
-                                @foreach ($eggs as $egg)
-                                    <option value="{{ $egg->id }}" @selected((int) old('egg_id') === $egg->id)>
-                                        {{ $egg->nest?->name ? $egg->nest->name . ' / ' : '' }}{{ $egg->name }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
+                        @if ($canChooseEgg)
+                            <div class="ss-field">
+                                <label for="ss-egg-id">Plantilla (egg)</label>
+                                <select id="ss-egg-id" name="egg_id" required>
+                                    @foreach ($eggs as $egg)
+                                        <option value="{{ $egg->id }}" @selected((int) old('egg_id') === $egg->id)>
+                                            {{ $egg->nest?->name ? $egg->nest->name . ' / ' : '' }}{{ $egg->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        @else
+                            <div class="ss-field ss-field--full">
+                                <p class="ss-alert ss-alert--info">
+                                    La plantilla (egg) de esta division sera la misma que la del servidor principal.
+                                    El administrador ha desactivado la eleccion de egg para este servidor.
+                                </p>
+                            </div>
+                        @endif
 
                         @unless ($distribute)
                             <div class="ss-field">

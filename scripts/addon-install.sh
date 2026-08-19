@@ -277,6 +277,18 @@ do_install() {
     info "Integrando los enlaces en la interfaz del panel…"
     backup_file "${PANEL_DIR}/resources/views/layouts/admin.blade.php"
     backup_file "${PANEL_DIR}/resources/views/templates/wrapper.blade.php"
+    backup_file "${PANEL_DIR}/resources/views/admin/servers/new.blade.php"
+    backup_file "${PANEL_DIR}/resources/views/admin/servers/view/build.blade.php"
+
+    # patch-panel.php reconoce sus propios bloques por el marcador
+    # "serversplitter:begin" y, si ya esta presente, no vuelve a tocar el
+    # archivo. Eso es correcto para no duplicar nada, pero tambien significa
+    # que un panel ya parcheado con una version antigua de la extension NUNCA
+    # recibiria un parche corregido en updates posteriores. Por eso, en cada
+    # instalacion/actualizacion se retira primero el parche existente (si lo
+    # hay) y se vuelve a aplicar entero, para que las correcciones lleguen
+    # siempre a paneles ya instalados.
+    php "${STATE_DIR}/source/tools/patch-panel.php" unpatch "$PANEL_DIR" >/dev/null 2>&1 || true
     php "${STATE_DIR}/source/tools/patch-panel.php" patch "$PANEL_DIR" \
         || warn "Algún parche de interfaz no se pudo aplicar; la extensión funciona, pero tendrás que entrar por URL."
 

@@ -19,6 +19,7 @@ class SplitterLimit extends Model
         'max_memory',
         'max_disk',
         'max_cpu',
+        'allow_egg_choice',
     ];
 
     protected $casts = [
@@ -27,6 +28,8 @@ class SplitterLimit extends Model
         'max_memory' => 'int',
         'max_disk' => 'int',
         'max_cpu' => 'int',
+        // bool con null: null = usar el comportamiento global (permitido).
+        'allow_egg_choice' => 'bool',
     ];
 
     public function server(): BelongsTo

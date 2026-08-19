@@ -39,5 +39,10 @@ return [
 
         // Prefijo del nombre generado para los servidores hijos.
         'child_name_prefix' => 'split',
+
+        // Lista blanca de IPs/CIDR para la API de integracion (WHMCS/Paymenter),
+        // separadas por comas. Vacio = sin restriccion de IP (solo la clave).
+        // Ejemplo: "203.0.113.10, 198.51.100.0/24"
+        'api_allowed_ips' => '',
     ],
 ];

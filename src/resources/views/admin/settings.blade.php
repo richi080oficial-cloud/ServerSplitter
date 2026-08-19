@@ -360,6 +360,25 @@
                                             </div>
                                         </div>
                                     </div>
+
+                                    <hr>
+                                    <h4 style="margin-top:0;">Seguridad de la API de integracion</h4>
+                                    <div class="row">
+                                        <div class="form-group col-xs-12">
+                                            <label class="control-label" for="ss-api-ips">
+                                                Lista blanca de IPs (opcional)
+                                            </label>
+                                            <input class="form-control" id="ss-api-ips" type="text"
+                                                   name="api_allowed_ips" value="{{ $settings['api_allowed_ips'] }}"
+                                                   placeholder="203.0.113.10, 198.51.100.0/24"
+                                                   aria-describedby="ss-api-ips-help">
+                                            <p class="text-muted small" id="ss-api-ips-help">
+                                                IPs o rangos CIDR separados por comas desde los que se permite llamar
+                                                a <code>/api/serversplitter/...</code> (WHMCS, Paymenter...). Vacio =
+                                                sin restriccion de IP, solo se exige la clave de la API.
+                                            </p>
+                                        </div>
+                                    </div>
                                 </div>
                                 <div class="box-footer">
                                     <button type="submit" class="btn btn-primary pull-right">Guardar configuracion</button>

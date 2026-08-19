@@ -209,24 +209,31 @@ function insertServerBuildFields(string $contents): ?string
 
 /**
  * Panel integrado de ServerSplitter en la vista del servidor.
+ *
+ * Se inserta DESPUES del </form> que ya existe en la vista: el partial trae
+ * su propio <form> (botones de eliminar division) y un <form> dentro de otro
+ * <form> es HTML invalido. Los navegadores "reparan" ese error moviendo los
+ * campos del formulario anidado al formulario exterior, lo que provocaba que
+ * el boton "Eliminar division" enviase en realidad el formulario de Build
+ * Configuration en vez de borrar la division.
  */
 function insertSplitterPanel(string $contents): ?string
 {
-    $close = strripos($contents, '</form>');
+    $tag = strripos($contents, '</form>');
 
-    if ($close === false) {
+    if ($tag === false) {
         return null;
     }
 
-    $indent = indentOfLineAt($contents, $close);
+    $lineEnd = strpos($contents, "\n", $tag);
+    $insertAt = $lineEnd === false ? strlen($contents) : $lineEnd + 1;
+    $indent = indentOfLineAt($contents, $tag);
 
     $block = wrap($indent, [
         $indent . "@include('serversplitter::admin.partials.server-splitter', ['ssServer' => \$server])",
     ]);
 
-    $lineStart = lineStartAt($contents, $close);
-
-    return substr($contents, 0, $lineStart) . $block . substr($contents, $lineStart);
+    return substr($contents, 0, $insertAt) . $block . substr($contents, $insertAt);
 }
 
 /**

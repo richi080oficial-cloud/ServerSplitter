@@ -52,7 +52,9 @@ class AdminServerLimits
             return $response;
         }
 
-        if ($payload === []) {
+        $eggChoice = $this->eggChoice($request);
+
+        if ($payload === [] && $eggChoice === null) {
             SplitterLimit::query()->where('server_id', $serverId)->delete();
 
             return $response;
@@ -64,6 +66,8 @@ class AdminServerLimits
         foreach (self::FIELDS as $field) {
             $limit->{$field} = $payload[$field] ?? null;
         }
+
+        $limit->allow_egg_choice = $eggChoice;
 
         $limit->save();
 
@@ -125,6 +129,21 @@ class AdminServerLimits
         }
 
         return $data;
+    }
+
+    /**
+     * Lee serversplitter[allow_egg_choice]: '1' => true, '0' => false,
+     * cualquier otra cosa (vacio, ausente) => null (usar el valor global).
+     */
+    protected function eggChoice(Request $request): ?bool
+    {
+        $raw = $request->input('serversplitter.allow_egg_choice');
+
+        return match ((string) $raw) {
+            '1' => true,
+            '0' => false,
+            default => null,
+        };
     }
 
     /**

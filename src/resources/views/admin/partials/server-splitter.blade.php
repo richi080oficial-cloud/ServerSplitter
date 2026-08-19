@@ -87,7 +87,7 @@
                                 @if ($ssLimit?->max_memory !== null)
                                     {{ $ssLimit->max_memory ?: 'Ilimitado' }} MiB
                                 @else
-                                    <span class="text-muted">Global: {{ $settings['reserve_memory'] ?: 'Ilimitado' }} MiB</span>
+                                    <span class="text-muted">Sin limite propio (usa los limites por egg / globales)</span>
                                 @endif
                             </td>
                         </tr>
@@ -97,7 +97,7 @@
                                 @if ($ssLimit?->max_disk !== null)
                                     {{ $ssLimit->max_disk ?: 'Ilimitado' }} MiB
                                 @else
-                                    <span class="text-muted">Global: {{ $settings['reserve_disk'] ?: 'Ilimitado' }} MiB</span>
+                                    <span class="text-muted">Sin limite propio (usa los limites por egg / globales)</span>
                                 @endif
                             </td>
                         </tr>
@@ -107,14 +107,26 @@
                                 @if ($ssLimit?->max_cpu !== null)
                                     {{ $ssLimit->max_cpu ?: 'Ilimitado' }} %
                                 @else
-                                    <span class="text-muted">Global: {{ $settings['reserve_cpu'] ?: 'Ilimitado' }} %</span>
+                                    <span class="text-muted">Sin limite propio (usa los limites por egg / globales)</span>
+                                @endif
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>Puede elegir egg:</strong></td>
+                            <td>
+                                @if ($ssLimit?->allow_egg_choice === null)
+                                    <span class="text-muted">Global (permitido)</span>
+                                @elseif ($ssLimit->allow_egg_choice)
+                                    <span class="label label-success">Si</span>
+                                @else
+                                    <span class="label label-warning">No, hereda el del padre</span>
                                 @endif
                             </td>
                         </tr>
                     </tbody>
                 </table>
             </div>
-            
+
             <div class="col-xs-12 col-md-6">
                 <h4>Divisiones activas ({{ $childSplits->count() }})</h4>
                 @if ($childSplits->count() > 0)
