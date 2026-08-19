@@ -5,6 +5,7 @@ namespace Pterodactyl\Extensions\ServerSplitter\Http\Controllers\Client;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
 use Illuminate\View\View;
 use Pterodactyl\Models\Server;
@@ -42,27 +43,63 @@ class SplitterController extends Controller
     public function show(string $server): View
     {
         $parent = $this->resolveServer($server);
+        [$view, $data] = $this->pageFor($parent);
 
+        return view($view, $data);
+    }
+
+    /**
+     * Igual que show(), pero devuelve solo el HTML del contenido, sin la
+     * pagina completa (sin <html>/cabecera/pie). La usa el script inyectado
+     * en el panel de cliente (serversplitter-inject.js) para sustituir el
+     * area de contenido de la SPA de React sin recargar la pagina: el
+     * sidebar y el fondo del tema no se tocan, solo esta porcion.
+     *
+     * No es una API estable pensada para consumo externo: cambia junto a la
+     * plantilla y no lleva versionado propio.
+     */
+    public function fragment(string $server): Response
+    {
+        $parent = $this->resolveServer($server);
+        [$view, $data] = $this->pageFor($parent);
+        $contentView = $view . '-content';
+
+        $html = '<div class="ss-fragment ss-container">' . view($contentView, $data)->render() . '</div>';
+
+        return response($html, 200)
+            ->header('Content-Type', 'text/html; charset=utf-8')
+            ->header('Cache-Control', 'no-store');
+    }
+
+    /**
+     * Vista y datos para un servidor: la pagina de gestion si es un padre,
+     * o la de "esto es una division" si es un hijo. Compartido entre show()
+     * y fragment() para no duplicar la logica de las dos.
+     *
+     * @return array{0: string, 1: array<string, mixed>}
+     */
+    protected function pageFor(Server $parent): array
+    {
         // Una division no se gestiona desde ella misma: se deshace desde el
         // servidor principal del que salio o desde el panel de administracion.
         if ($this->splitter->isChild($parent)) {
             $split = ServerSplit::query()->with('parent')->where('server_id', $parent->id)->first();
             $origin = $split?->parent;
 
-            return view('serversplitter::client.child', [
+            return ['serversplitter::client.child', [
                 'server' => $parent,
                 'origin' => $origin,
                 'ownsOrigin' => $origin !== null && (int) $origin->owner_id === (int) $this->user()->id,
-            ]);
+            ]];
         }
 
-        return view('serversplitter::client.index', [
+        return ['serversplitter::client.index', [
             'server' => $parent,
             'state' => $this->splitter->state($parent),
             'settings' => $this->splitter->settings(),
             'eggs' => $this->splitter->availableEggsFor($parent),
             'canChooseEgg' => $this->splitter->canChooseEgg($parent),
-        ]);
+        ]];
     }
 
     /**

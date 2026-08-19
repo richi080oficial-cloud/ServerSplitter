@@ -46,7 +46,20 @@
     /** Enlaces del sidebar del tema, usados como plantilla de estructura. */
     var THEME_ITEM_SELECTOR = 'a[data-theme-editor-id^="server:"]';
 
+    /** Candidatos para el area de contenido central de la SPA, en orden de preferencia. */
+    var CONTENT_CANDIDATES = [
+        '[data-theme-layout-group="content"]',
+        '[data-theme-layout-group="server:content"]',
+        'main'
+    ];
+
     var pending = false;
+
+    /** Contenedor actualmente sustituido por nuestro fragmento, o null. */
+    var currentContentEl = null;
+
+    /** true mientras el area de contenido muestra nuestro fragmento en sitio. */
+    var swapped = false;
 
     /**
      * Log con prefijo propio, visible en el filtro "Default" de la consola
@@ -297,6 +310,154 @@
         return links[identifier] || '/server/' + identifier + '/serversplitter';
     }
 
+    /**
+     * Area de contenido central de la SPA (donde se pinta Console, Files,
+     * Settings...). Se prueban selectores conocidos y, si ninguno existe, se
+     * deduce por tamano: el hermano mas grande del contenedor del sidebar,
+     * subiendo por los ancestros hasta encontrar uno.
+     */
+    function findContentContainer() {
+        for (var i = 0; i < CONTENT_CANDIDATES.length; i++) {
+            var el = document.querySelector(CONTENT_CANDIDATES[i]);
+
+            if (el !== null) {
+                log('area de contenido encontrada con el selector "' + CONTENT_CANDIDATES[i] + '"');
+
+                return el;
+            }
+        }
+
+        var node = document.querySelector(GROUP_SELECTOR);
+
+        while (node !== null && node.parentElement !== null && node !== document.body) {
+            var parent = node.parentElement;
+            var best = null;
+            var bestArea = 40000; // ~200x200px minimo: descarta botones/iconos sueltos.
+
+            for (var j = 0; j < parent.children.length; j++) {
+                var sibling = parent.children[j];
+
+                if (sibling === node) {
+                    continue;
+                }
+
+                var rect = sibling.getBoundingClientRect();
+                var area = rect.width * rect.height;
+
+                if (area > bestArea) {
+                    bestArea = area;
+                    best = sibling;
+                }
+            }
+
+            if (best !== null) {
+                log('area de contenido deducida por tamano (hermano de', node, '):', best);
+
+                return best;
+            }
+
+            node = parent;
+        }
+
+        return null;
+    }
+
+    /** Carga (o crea) el CSS de la extension, necesario para el fragmento inyectado. */
+    function ensureFragmentCss() {
+        if (document.querySelector('link[data-serversplitter-css]') !== null) {
+            return;
+        }
+
+        var link = document.createElement('link');
+        link.setAttribute('data-serversplitter-css', '1');
+        link.rel = 'stylesheet';
+        link.href = '/extensions/serversplitter/serversplitter.css';
+        document.head.appendChild(link);
+    }
+
+    /**
+     * Vuelve a cargar serversplitter.js para que confirme los formularios y
+     * calcule la vista previa de recursos del fragmento recien insertado
+     * (los listeners del fragmento anterior murieron con el, al sustituir
+     * el innerHTML).
+     */
+    function reinitFragmentScripts() {
+        var old = document.querySelectorAll('script[data-serversplitter-fragment-script]');
+        Array.prototype.forEach.call(old, function (el) {
+            el.parentNode.removeChild(el);
+        });
+
+        var script = document.createElement('script');
+        script.src = '/extensions/serversplitter/serversplitter.js';
+        script.setAttribute('data-serversplitter-fragment-script', '1');
+        document.body.appendChild(script);
+    }
+
+    /**
+     * Sustituye el area de contenido de la SPA por el fragmento HTML del
+     * servidor indicado, sin recargar la pagina. Si algo falla (red,
+     * respuesta no valida...) se cae a una navegacion normal.
+     */
+    function loadIntoContent(contentEl, identifier, href) {
+        ensureFragmentCss();
+        contentEl.setAttribute('aria-busy', 'true');
+
+        window.fetch('/server/' + encodeURIComponent(identifier) + '/serversplitter/fragment', {
+            credentials: 'same-origin',
+            headers: { Accept: 'text/html' }
+        }).then(function (response) {
+            if (!response.ok) {
+                throw new Error('HTTP ' + response.status);
+            }
+
+            return response.text();
+        }).then(function (html) {
+            contentEl.innerHTML = html;
+            contentEl.removeAttribute('aria-busy');
+            currentContentEl = contentEl;
+            swapped = true;
+
+            window.history.pushState({ serversplitter: true }, '', href);
+            window.scrollTo(0, 0);
+            reinitFragmentScripts();
+            log('contenido sustituido en sitio para ' + identifier + ' (sin recargar la pagina)');
+        }).catch(function (error) {
+            log('fallo al cargar el fragmento, navegando normal a ' + href + ':', error);
+            window.location.href = href;
+        });
+    }
+
+    /**
+     * Clic en nuestro propio enlace del sidebar: si se puede localizar el
+     * area de contenido, se sustituye en sitio (sin recarga). Si no, se deja
+     * la navegacion normal tal cual (misma pagina de siempre, con su propio
+     * layout completo).
+     */
+    function handleLinkClick(event) {
+        if (event.defaultPrevented || event.button !== 0
+            || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+            return;
+        }
+
+        var identifier = event.currentTarget.getAttribute(ATTR);
+        var href = event.currentTarget.getAttribute('href') || '';
+
+        if (!identifier) {
+            return;
+        }
+
+        var contentEl = findContentContainer();
+
+        if (contentEl === null) {
+            log('no se encontro el area de contenido de la SPA; navegando de forma normal a ' + href);
+
+            return;
+        }
+
+        event.preventDefault();
+        loadIntoContent(contentEl, identifier, href);
+    }
+
     function build(template, identifier) {
         var link = document.createElement('a');
 
@@ -325,6 +486,8 @@
         } else {
             link.appendChild(document.createTextNode(LABEL));
         }
+
+        link.addEventListener('click', handleLinkClick);
 
         return link;
     }
@@ -534,6 +697,47 @@
         // burbujean, pero si se capturan bajando desde window).
         window.addEventListener('scroll', schedule, true);
         window.addEventListener('resize', schedule);
+
+        // Tras sustituir el contenido en sitio, ese contenedor deja de tener
+        // el DOM que React recuerda haber pintado. Si el usuario pulsa
+        // "atras"/"adelante" del navegador, la forma segura de recuperar un
+        // estado valido es recargar del todo en vez de dejar que React
+        // intente reconciliar sobre un arbol que ya no reconoce.
+        window.addEventListener('popstate', function () {
+            if (swapped) {
+                log('volviendo atras/adelante tras sustituir contenido: recargando la pagina para recuperar la SPA');
+                window.location.reload();
+            }
+        });
+
+        // Misma idea para cualquier otro enlace del panel (Console, Files...)
+        // que el usuario pulse mientras estamos mostrando el fragmento: en
+        // vez de dejar que React Router intente su propia navegacion
+        // interna sobre un contenedor que ya no coincide con lo que
+        // recuerda, se fuerza una navegacion de pagina completa normal.
+        // capture:true para verlo antes que cualquier handler de React.
+        document.addEventListener('click', function (event) {
+            if (!swapped || event.defaultPrevented || event.button !== 0
+                || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+                return;
+            }
+
+            var anchor = event.target && typeof event.target.closest === 'function'
+                ? event.target.closest('a[href]')
+                : null;
+
+            if (anchor === null || anchor.hasAttribute(ATTR)) {
+                return;
+            }
+
+            if (currentContentEl !== null && currentContentEl.contains(anchor)) {
+                return;
+            }
+
+            event.preventDefault();
+            log('enlace fuera del fragmento pulsado tras sustituir contenido: navegando de pagina completa a ' + anchor.href);
+            window.location.href = anchor.href;
+        }, true);
     }
 
     if (document.readyState === 'loading') {

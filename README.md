@@ -97,6 +97,25 @@ En modo "Eggs concretos" la lista de "Reglas de eggs" global no filtra nada mas:
 eligio el admin para ese servidor es la autoridad final. En modo "No seleccionar" tampoco se
 consulta ninguna lista: la division simplemente copia el egg que el padre ya tenia instalado.
 
+## Integracion en el panel de cliente (sin recargar la pagina)
+
+El enlace "Divisiones" del sidebar del servidor no hace una navegacion normal: `serversplitter-inject.js`
+intercepta el clic, pide el contenido por `fetch()` a `/server/{id}/serversplitter/fragment` (HTML suelto,
+sin la pagina completa) y lo sustituye en el area central de la SPA, dejando el sidebar y el fondo del
+tema intactos. Es una simulacion por JavaScript, no una integracion nativa de React (eso solo es posible
+con Blueprint, que ServerSplitter no usa a proposito). Limitaciones conocidas de esta tecnica:
+
+- Los formularios de dentro (crear/eliminar division) siguen siendo un POST normal: al enviarlos, el
+  navegador navega de verdad y aterriza en la pagina completa de ServerSplitter (con su propio layout).
+- Si mientras se ve el fragmento el usuario pulsa cualquier otro enlace del panel (Console, Files...),
+  se fuerza una recarga completa de pagina en vez de dejar que React intente renderizar sobre un
+  contenedor que ya no reconoce. Lo mismo al pulsar "atras"/"adelante" del navegador.
+- Si el script no logra localizar el area de contenido de la SPA (selector no reconocido en tu tema), se
+  cae automaticamente a una navegacion normal: nunca deja la pagina a medias.
+
+La URL `/server/{id}/serversplitter` sigue funcionando igual (pagina completa) para quien llegue por
+enlace directo, marcador o sin JavaScript.
+
 ## Protecciones incluidas
 
 - Reserva minima garantizada al padre (`reserve_memory`, `reserve_disk`, `reserve_cpu`).

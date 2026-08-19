@@ -26,10 +26,7 @@ Route::middleware(['web', 'auth'])
  * Rutas de cliente para un servidor concreto: /server/{server}/serversplitter
  *
  * Cuelgan de la misma ruta base que usa el panel de cliente (/server/{id}/...)
- * para que la URL sea coherente con el resto de pestanas del servidor. Sigue
- * siendo una pagina Blade aparte (recarga completa al navegar): sin acceso al
- * codigo del tema de React no hay forma de montar un componente de verdad
- * dentro de la SPA.
+ * para que la URL sea coherente con el resto de pestanas del servidor.
  */
 Route::middleware(['web', 'auth'])
     ->prefix('server/{server}/serversplitter')
@@ -38,6 +35,15 @@ Route::middleware(['web', 'auth'])
         Route::get('/availability', [SplitterController::class, 'availability'])
             ->middleware('throttle:60,1')
             ->name('availability');
+
+        // Version "solo contenido" (sin la pagina completa) que pide por
+        // fetch() el script inyectado en el panel de cliente, para
+        // sustituir el area central de la SPA sin recargar la pagina. Ver
+        // SplitterController::fragment() y serversplitter-inject.js.
+        Route::get('/fragment', [SplitterController::class, 'fragment'])
+            ->middleware('throttle:60,1')
+            ->name('fragment');
+
         Route::get('/', [SplitterController::class, 'show'])->name('show');
 
         // Limite mas estricto en las acciones que crean o destruyen servidores:

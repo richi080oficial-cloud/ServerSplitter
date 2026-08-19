@@ -22,9 +22,18 @@
     --ss-gap: 16px;
 }
 
-*,
-*::before,
-*::after {
+/* Reset propio limitado a nuestras paginas (.ss-body, la pagina completa) y
+   al fragmento embebido en la SPA (.ss-fragment): nunca un "*" global, para
+   no alterar el box-sizing del resto del tema cuando el fragmento se
+   sustituye en sitio dentro del panel de cliente (ver serversplitter-inject.js). */
+.ss-body,
+.ss-body *,
+.ss-body *::before,
+.ss-body *::after,
+.ss-fragment,
+.ss-fragment *,
+.ss-fragment *::before,
+.ss-fragment *::after {
     box-sizing: border-box;
 }
 
@@ -43,6 +52,18 @@ body.ss-body {
     min-height: 100vh;
     display: flex;
     flex-direction: column;
+}
+
+/* Cuando el script inyectado en el panel de cliente sustituye el area de
+   contenido de la SPA por este mismo HTML (sin la pagina completa ni
+   body.ss-body), este wrapper aporta el mismo color de texto y tipografia
+   para que no dependa de heredar nada del tema. El fondo se deja sin fijar
+   a proposito: hereda el de la propia SPA en vez de imponer el nuestro. */
+.ss-fragment {
+    color: var(--ss-text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.55;
 }
 
 .ss-container {
@@ -83,10 +104,14 @@ body.ss-body {
     border: 0;
 }
 
-a:focus-visible,
-button:focus-visible,
-input:focus-visible,
-select:focus-visible {
+.ss-body a:focus-visible,
+.ss-body button:focus-visible,
+.ss-body input:focus-visible,
+.ss-body select:focus-visible,
+.ss-fragment a:focus-visible,
+.ss-fragment button:focus-visible,
+.ss-fragment input:focus-visible,
+.ss-fragment select:focus-visible {
     outline: 2px solid var(--ss-focus);
     outline-offset: 2px;
 }
