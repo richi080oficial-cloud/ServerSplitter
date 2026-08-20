@@ -202,11 +202,36 @@
     }
 
     /**
+     * Primer elemento realmente visible (con tamano en pantalla) de una
+     * lista. Varios temas dejan en el DOM una copia oculta del sidebar para
+     * otro breakpoint (version movil/escritorio, ambas presentes a la vez,
+     * una tapada con display:none) y querySelector() se queda sin mas con
+     * la primera que encuentra, sea o no la visible. Si esa copia oculta es
+     * la elegida, las coordenadas que se calculan a partir de ella
+     * (getBoundingClientRect) son todo ceros o corresponden a un layout que
+     * no es el que ve el usuario, y el portal (posicionado por coordenadas,
+     * ver ensurePortal/renderPortal) termina solapado con contenido real
+     * que no tiene nada que ver. Visto en produccion: el enlace "Divisiones"
+     * aparecia con texto solapado con otro elemento del sidebar.
+     */
+    function firstVisible(elements) {
+        for (var i = 0; i < elements.length; i++) {
+            var rect = elements[i].getBoundingClientRect();
+
+            if (rect.width > 0 && rect.height > 0) {
+                return elements[i];
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Contenedor donde insertar el enlace y enlace de referencia para el
      * estilo. Se prioriza el grupo de addons del sidebar del tema.
      */
     function targetFor(identifier) {
-        var group = document.querySelector(GROUP_SELECTOR);
+        var group = firstVisible(document.querySelectorAll(GROUP_SELECTOR));
 
         if (group !== null) {
             var sample = sampleAnchorIn(group, 'a')
@@ -321,7 +346,7 @@
      */
     function findContentContainer() {
         for (var i = 0; i < CONTENT_CANDIDATES.length; i++) {
-            var el = document.querySelector(CONTENT_CANDIDATES[i]);
+            var el = firstVisible(document.querySelectorAll(CONTENT_CANDIDATES[i]));
 
             if (el !== null) {
                 log('area de contenido encontrada con el selector "' + CONTENT_CANDIDATES[i] + '"');
@@ -330,7 +355,7 @@
             }
         }
 
-        var node = document.querySelector(GROUP_SELECTOR);
+        var node = firstVisible(document.querySelectorAll(GROUP_SELECTOR));
 
         while (node !== null && node.parentElement !== null && node !== document.body) {
             var parent = node.parentElement;
@@ -451,14 +476,45 @@
      */
     var suppressHistoryGuard = false;
 
+    /**
+     * true justo antes de un popstate sintetico disparado por nosotros
+     * mismos (ver notifyRouter): el listener de popstate lo consume y lo
+     * deja en false, para no confundirlo con "atras/adelante" real del
+     * usuario y disparar restoreOriginalContent() sobre el fragmento que
+     * acabamos de mostrar.
+     */
+    var suppressPopstateGuard = false;
+
+    /**
+     * pushState/replaceState nativos NO disparan ningun evento por si
+     * solos, asi que el router de React (que se resincroniza escuchando
+     * popstate) no se entera de que la URL cambio cuando la cambiamos
+     * nosotros a mano. Visto en produccion: al entrar a "Divisiones" desde
+     * "Files", el router seguia pensando que la ruta activa era Files y no
+     * le quitaba la clase de activo, asi que ambos quedaban marcados a la
+     * vez. Disparar un popstate sintetico justo despues empuja al router a
+     * releer window.location y resincronizar su propio estado de ruta (y,
+     * con el, el resaltado de los enlaces del sidebar que si controla el).
+     */
+    function notifyRouter() {
+        if (typeof window.PopStateEvent !== 'function') {
+            return;
+        }
+
+        suppressPopstateGuard = true;
+        window.dispatchEvent(new window.PopStateEvent('popstate', { state: window.history.state }));
+    }
+
     function ourPushState(state, href) {
         suppressHistoryGuard = true;
         window.history.pushState(state, '', href);
+        notifyRouter();
     }
 
     function ourReplaceState(state, href) {
         suppressHistoryGuard = true;
         window.history.replaceState(state, '', href);
+        notifyRouter();
     }
 
     /** Construye el HTML de un aviso de exito/error para prepender al fragmento. */
@@ -1051,6 +1107,13 @@
         // para restaurar el contenido original antes de que la SPA
         // reaccione al cambio de URL.
         window.addEventListener('popstate', function () {
+            if (suppressPopstateGuard) {
+                suppressPopstateGuard = false;
+                schedule();
+
+                return;
+            }
+
             if (swapped) {
                 log('atras/adelante del navegador mientras se mostraba el fragmento: restaurando el contenido original');
                 restoreOriginalContent();

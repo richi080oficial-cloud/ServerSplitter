@@ -59,10 +59,16 @@ Route::middleware(['web', 'auth'])
  * "admin/serversplitter" (empieza igual, letra a letra: a-d-m-i-n-/-s-e-r-
  * v-e-r-s), asi que "Servers" se marcaba activo tambien en nuestra pagina.
  * Anidando bajo /admin/extensions/ se evita la colision.
+ *
+ * La misma colision existe en el NOMBRE de ruta, no solo en la URL: si el
+ * tema resalta "Servers" comprobando el nombre de ruta (routeIs('admin.servers*'))
+ * en vez de (o ademas de) la URL, "admin.serversplitter.*" tambien empezaba
+ * literalmente por "admin.servers". Por eso el prefijo del nombre tambien
+ * lleva "extensions." de por medio: admin.extensions.serversplitter.*
  */
 Route::middleware(['web', 'auth', AdminAuthenticate::class])
     ->prefix('admin/extensions/serversplitter')
-    ->name('admin.serversplitter.')
+    ->name('admin.extensions.serversplitter.')
     ->group(function () {
         Route::get('/', [AdminController::class, 'index'])->name('index');
         Route::patch('/settings', [AdminController::class, 'updateSettings'])->name('settings.update');

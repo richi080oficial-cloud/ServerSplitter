@@ -149,7 +149,7 @@ function insertSidebarEntry(string $contents): ?string
     $block = wrap($indent, [
         $inner . '<li class="header">SERVERSPLITTER</li>',
         $inner . '<li class="{{ request()->is(\'admin/extensions/serversplitter\', \'admin/extensions/serversplitter/*\') ? \'active\' : \'\' }}">',
-        $inner . '    <a href="{{ \Illuminate\Support\Facades\Route::has(\'admin.serversplitter.index\') ? route(\'admin.serversplitter.index\') : url(\'/admin/extensions/serversplitter\') }}">',
+        $inner . '    <a href="{{ \Illuminate\Support\Facades\Route::has(\'admin.extensions.serversplitter.index\') ? route(\'admin.extensions.serversplitter.index\') : url(\'/admin/extensions/serversplitter\') }}">',
         $inner . '        <i class="fa fa-clone"></i> <span>ServerSplitter</span>',
         $inner . '    </a>',
         $inner . '</li>',

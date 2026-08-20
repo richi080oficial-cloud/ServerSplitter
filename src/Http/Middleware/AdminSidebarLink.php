@@ -115,8 +115,8 @@ class AdminSidebarLink
     {
         $active = $request->is('admin/extensions/serversplitter', 'admin/extensions/serversplitter/*') ? ' class="active"' : '';
 
-        $url = Route::has('admin.serversplitter.index')
-            ? route('admin.serversplitter.index')
+        $url = Route::has('admin.extensions.serversplitter.index')
+            ? route('admin.extensions.serversplitter.index')
             : url('/admin/extensions/serversplitter');
 
         return "\n" . self::MARKER . "\n"

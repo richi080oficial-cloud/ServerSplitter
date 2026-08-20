@@ -256,7 +256,7 @@
             <div class="tab-pane active" id="ss-tab-general" role="tabpanel">
                 <div class="row">
                     <div class="col-xs-12 col-md-8">
-                        <form action="{{ route('admin.serversplitter.settings.update') }}" method="POST">
+                        <form action="{{ route('admin.extensions.serversplitter.settings.update') }}" method="POST">
                             @csrf
                             @method('PATCH')
                             <div class="box box-primary">
@@ -420,7 +420,7 @@
                     <div class="col-xs-12 col-md-5">
                         <div class="box box-primary">
                             <div class="box-header with-border"><h3 class="box-title">Nueva regla / editar existente</h3></div>
-                            <form action="{{ route('admin.serversplitter.eggs.store') }}" method="POST">
+                            <form action="{{ route('admin.extensions.serversplitter.eggs.store') }}" method="POST">
                                 @csrf
                                 <div class="box-body">
                                     <div class="form-group">
@@ -502,7 +502,7 @@
                                             <td>{{ $rule->min_memory ?: '-' }} / {{ $rule->min_disk ?: '-' }} / {{ $rule->min_cpu ?: '-' }}</td>
                                             <td>{{ $rule->max_memory ?: '-' }} / {{ $rule->max_disk ?: '-' }} / {{ $rule->max_cpu ?: '-' }}</td>
                                             <td class="text-right">
-                                                <form action="{{ route('admin.serversplitter.eggs.destroy', $rule->id) }}" method="POST">
+                                                <form action="{{ route('admin.extensions.serversplitter.eggs.destroy', $rule->id) }}" method="POST">
                                                     @csrf
                                                     @method('DELETE')
                                                     <button type="submit" class="btn btn-xs btn-danger">Quitar</button>
@@ -578,7 +578,7 @@
                                     <td>{{ $split->server->disk ?? $split->disk }}</td>
                                     <td>{{ $split->server->cpu ?? $split->cpu }}</td>
                                     <td class="text-right">
-                                        <form action="{{ route('admin.serversplitter.splits.destroy', $split->id) }}" method="POST"
+                                        <form action="{{ route('admin.extensions.serversplitter.splits.destroy', $split->id) }}" method="POST"
                                               onsubmit="return confirm('Esto ELIMINA el servidor hijo y devuelve los recursos al padre. Continuar?');">
                                             @csrf
                                             @method('DELETE')
@@ -616,7 +616,7 @@
                                 </p>
                             </div>
                             <div class="box-footer">
-                                <form action="{{ route('admin.serversplitter.maintenance') }}" method="POST">
+                                <form action="{{ route('admin.extensions.serversplitter.maintenance') }}" method="POST">
                                     @csrf
                                     <button type="submit" class="btn btn-default btn-sm">
                                         Limpiar cache y bloqueos caducados
@@ -629,7 +629,7 @@
                     <div class="col-xs-12 col-md-6">
                         <div class="box box-warning">
                             <div class="box-header with-border"><h3 class="box-title">Liberar bloqueo de un servidor</h3></div>
-                            <form action="{{ route('admin.serversplitter.unlock') }}" method="POST">
+                            <form action="{{ route('admin.extensions.serversplitter.unlock') }}" method="POST">
                                 @csrf
                                 <div class="box-body">
                                     <div class="form-group">

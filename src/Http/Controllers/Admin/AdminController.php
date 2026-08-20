@@ -142,7 +142,7 @@ class AdminController extends Controller
      */
     protected function panelUrl(string $tab = 'general'): string
     {
-        return route('admin.serversplitter.index') . '#ss-tab-' . $tab;
+        return route('admin.extensions.serversplitter.index') . '#ss-tab-' . $tab;
     }
 
     protected function currentUser(): \Pterodactyl\Models\User

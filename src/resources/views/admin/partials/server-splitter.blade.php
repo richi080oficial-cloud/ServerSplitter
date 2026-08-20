@@ -53,7 +53,7 @@
                 </a>
                 
                 @if (auth()->user()->root_admin)
-                    <form action="{{ route('admin.serversplitter.splits.destroy', $parentSplit->id) }}" 
+                    <form action="{{ route('admin.extensions.serversplitter.splits.destroy', $parentSplit->id) }}" 
                           method="POST" 
                           style="display:inline;"
                           onsubmit="return confirm('Esto ELIMINA este servidor y devuelve los recursos al padre. ¿Continuar?');">
@@ -172,7 +172,7 @@
             <i class="fa fa-info-circle"></i>
             Los límites de este servidor se editan en el formulario de arriba.
             Las divisiones se crean desde el panel de cliente o mediante API.
-            <a href="{{ route('admin.serversplitter.index') }}">Ir al panel de administración de ServerSplitter</a>
+            <a href="{{ route('admin.extensions.serversplitter.index') }}">Ir al panel de administración de ServerSplitter</a>
         </p>
     </div>
 </div>
