@@ -397,36 +397,49 @@
     }
 
     /**
-     * Nodos originales que React tenia dentro del area de contenido antes de
-     * sustituirla por nuestro fragmento, guardados (no destruidos) para
-     * devolverlos tal cual al salir. Junto con currentContentEl, define si
+     * Hijos originales que React tenia dentro del area de contenido antes de
+     * mostrar el fragmento, con su "display" previo, para poder devolverlos
+     * a la vista tal cual al salir. Junto con currentContentEl, define si
      * estamos mostrando el fragmento en sitio.
+     *
+     * IMPORTANTE: estos nodos se ocultan con display:none EN SU SITIO, nunca
+     * se mueven de padre (ni a un DocumentFragment en memoria ni a ningun
+     * otro lado). Una version anterior si los movia, y provoco un crash real
+     * en produccion: algunas animaciones del tema (CSSTransition, en el
+     * bloque de limites del servidor) programan un removeChild() retrasado
+     * con setTimeout tras su animacion de salida, contra el padre que el
+     * nodo tenia en ESE momento. Si el nodo ya no colgaba de ahi porque
+     * nuestro script lo habia movido entre medias, ese removeChild() tardio
+     * fallaba con "NotFoundError: node to be removed is not a child of this
+     * node", tiraba abajo el ErrorBoundary de React y forzaba un remount
+     * completo (con la consiguiente tormenta de reconexiones del
+     * websocket). Ocultando en sitio en vez de mover, el padre real de cada
+     * nodo no cambia nunca, asi que cualquier removeChild() retrasado sigue
+     * encontrandolo donde lo dejo.
      */
-    var savedOriginalContent = null;
+    var hiddenChildren = [];
 
     /**
      * Devuelve el area de contenido a como estaba antes de mostrar el
-     * fragmento: se quita nuestro wrapper y se reinsertan los nodos
-     * originales de React exactamente donde estaban. Al no haberlos
-     * destruido nunca (solo movidos a un DocumentFragment en memoria),
-     * React sigue reconociendolos como suyos y puede volver a renderizar
-     * sobre ellos con normalidad.
+     * fragmento: se quita nuestro wrapper (enteramente nuestro, seguro de
+     * eliminar) y se revierte el display de los hijos originales que se
+     * habian ocultado. Ver hiddenChildren para el porque de este enfoque.
      */
     function restoreOriginalContent() {
         if (currentContentEl === null) {
             return;
         }
 
-        currentContentEl.innerHTML = ''; // solo contiene nuestro wrapper: seguro de vaciar.
+        detach(currentContentEl.querySelector('[data-serversplitter-fragment-root]'));
 
-        if (savedOriginalContent !== null) {
-            currentContentEl.appendChild(savedOriginalContent);
+        for (var i = 0; i < hiddenChildren.length; i++) {
+            hiddenChildren[i].node.style.display = hiddenChildren[i].display;
         }
 
         log('contenido original de la SPA restaurado');
 
         currentContentEl = null;
-        savedOriginalContent = null;
+        hiddenChildren = [];
         swappedIdentifier = null;
         swapped = false;
     }
@@ -484,20 +497,23 @@
 
             return response.text();
         }).then(function (html) {
-            // Si ya habia un fragmento nuestro mostrado (p.ej. cambiando de
-            // servidor sin salir del todo), se descarta: no hay nada de
-            // React que conservar ahi.
-            if (swapped) {
-                currentContentEl = null;
-                savedOriginalContent = null;
-            }
-
             if (currentContentEl === null) {
-                savedOriginalContent = document.createDocumentFragment();
+                // Primera vez que se muestra el fragmento en esta area: se
+                // ocultan (no se mueven, ver hiddenChildren) los hijos que
+                // React tenia puestos ahi.
+                hiddenChildren = [];
+                var kids = Array.prototype.slice.call(contentEl.children);
 
-                while (contentEl.firstChild) {
-                    savedOriginalContent.appendChild(contentEl.firstChild);
+                for (var i = 0; i < kids.length; i++) {
+                    hiddenChildren.push({ node: kids[i], display: kids[i].style.display });
+                    kids[i].style.display = 'none';
                 }
+            } else {
+                // Ya habia un fragmento nuestro mostrado (p.ej. cambiando de
+                // servidor sin salir del todo): se quita solo el wrapper
+                // anterior, que es enteramente nuestro. Los hijos originales
+                // de React siguen ocultos tal cual.
+                detach(contentEl.querySelector('[data-serversplitter-fragment-root]'));
             }
 
             var wrapper = document.createElement('div');
@@ -515,7 +531,6 @@
                 target.insertBefore(alertHost.firstElementChild, target.firstChild);
             }
 
-            contentEl.innerHTML = '';
             contentEl.appendChild(wrapper);
             contentEl.removeAttribute('aria-busy');
             currentContentEl = contentEl;
