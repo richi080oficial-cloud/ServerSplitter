@@ -92,10 +92,22 @@
         return match ? match[1] : null;
     }
 
-    /** Icono propio (bloques divididos). SVG estatico, sin dependencias. */
+    /**
+     * Icono propio (bloques divididos). SVG estatico, sin dependencias.
+     *
+     * El tamano se fija con atributos width/height + style inline (nunca
+     * solo con la clase copiada de un icono vecino, ver hasIconSpan): esa
+     * clase puede traer reglas especificas de ESE icono (p.ej. FontAwesome
+     * codifica el ratio de aspecto del glifo en clases como "fa-w-14"), que
+     * al aplicarse sobre nuestro dibujo (siempre cuadrado) podrian dejarlo
+     * con un tamano incorrecto o en el peor caso invisible. El estilo
+     * inline gana siempre sobre una clase externa, asi que esto garantiza
+     * que el icono se vea sea cual sea el tema.
+     */
     function iconMarkup(svgClass) {
         return '<svg aria-hidden="true" focusable="false" role="img"'
             + ' xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"'
+            + ' width="1em" height="1em" style="width:1em;height:1em;overflow:visible;flex-shrink:0"'
             + ' draggable="false"'
             + (svgClass ? ' class="' + svgClass + '"' : '')
             + '>'
@@ -169,17 +181,49 @@
         };
     }
 
-    /** Primer enlace del contenedor que no sea el nuestro. */
+    /** true si alguno de los <span> directos del enlace envuelve un <svg> (patron de icono esperado por templateFrom). */
+    function hasIconSpan(anchor) {
+        var spans = directSpans(anchor);
+
+        for (var i = 0; i < spans.length; i++) {
+            if (spans[i].querySelector('svg') !== null) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Enlace del contenedor a usar de plantilla, que no sea el nuestro. Se
+     * prefiere el primero con la estructura de icono esperada (span > svg),
+     * no simplemente el primero del grupo: si otro addon del sidebar tiene
+     * una estructura distinta (por ejemplo, un icono de fuente en vez de
+     * svg), usarlo como plantilla hacia que templateFrom() confundiera cual
+     * span era el icono y cual la etiqueta, dejando el enlace de
+     * ServerSplitter sin icono y con el texto metido en la clase equivocada
+     * (visto en produccion). Si ninguno encaja, se cae al primero de
+     * todas formas para no quedarnos sin plantilla.
+     */
     function sampleAnchorIn(root, selector) {
         var anchors = root.querySelectorAll(selector);
+        var fallback = null;
 
         for (var i = 0; i < anchors.length; i++) {
-            if (!anchors[i].hasAttribute(ATTR)) {
+            if (anchors[i].hasAttribute(ATTR)) {
+                continue;
+            }
+
+            if (fallback === null) {
+                fallback = anchors[i];
+            }
+
+            if (hasIconSpan(anchors[i])) {
                 return anchors[i];
             }
         }
 
-        return null;
+        return fallback;
     }
 
     /**
