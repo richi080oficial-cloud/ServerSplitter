@@ -16,6 +16,7 @@ class SplitterCommand extends Command
     protected $signature = 'serversplitter:manage
                             {action=info : info | apikey | purge | prune}
                             {--key= : Clave concreta a usar con la accion apikey}
+                            {--if-missing : Con apikey, no hace nada si ya existe una clave}
                             {--force : No pedir confirmacion (necesario para purge)}';
 
     protected $description = 'Utilidades internas de ServerSplitter (usadas por el CLI serversplitter).';
@@ -75,6 +76,13 @@ class SplitterCommand extends Command
 
     protected function apiKey(): int
     {
+        if ($this->option('if-missing') && (string) (SplitterSetting::read('api_key_hash') ?? '') !== '') {
+            // La instalacion la llama en cada install/update para que la clave
+            // se genere sola la primera vez; en las siguientes ya existe y no
+            // hay que tocarla (invalidaria la integracion con WHMCS/Paymenter).
+            return self::SUCCESS;
+        }
+
         $key = (string) ($this->option('key') ?: Str::random(48));
 
         SplitterSetting::write(['api_key_hash' => password_hash($key, PASSWORD_DEFAULT)]);

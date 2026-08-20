@@ -7,8 +7,8 @@ con parte de los recursos del principal y el padre se redimensiona automaticamen
 Al eliminar una division, los recursos vuelven al padre.
 
 - Panel de administracion propio (`/admin/extensions/serversplitter`) con configuracion, reglas por egg y limites por servidor.
-- Interfaz de cliente independiente por servidor en `/server/{id}/serversplitter`, responsive y accesible.
-- API con clave propia para **WHMCS / Paymenter** (ampliar recursos, fijar limites, purgar divisiones).
+- Pestana "Divisiones" integrada en el panel de cliente de cada servidor, sin recargar la pagina.
+- API con clave propia para **WHMCS / Paymenter** (ampliar recursos, fijar limites, purgar divisiones). La clave se genera sola al instalar.
 - Operaciones **atomicas**: bloqueo pesimista por servidor y rollback si el padre no puede redimensionarse.
 
 ## Requisitos
@@ -24,9 +24,9 @@ Un solo comando, como root:
 
     bash <(curl -sSL https://raw.githubusercontent.com/waise-team/ServerSplitter/main/install.sh) install
 
-Despues genera la clave de la API de integracion (hasta entonces la API responde `503`):
-
-    sudo serversplitter apikey
+Con eso ya queda listo: la extension se registra, las migraciones se ejecutan y la clave de la
+API de integracion se genera automaticamente (se muestra al final de la instalacion; guardala,
+no se puede volver a mostrar). No hace falta ningun paso manual adicional.
 
 Que hace el instalador:
 
@@ -34,8 +34,10 @@ Que hace el instalador:
 2. El gestor clona el codigo en `/opt/serversplitter` y ejecuta `scripts/addon-install.sh`.
 3. El instalador copia `src/` a `app/Extensions/ServerSplitter`, registra el ServiceProvider
    (en `bootstrap/providers.php` o en el array `providers` de `config/app.php`, con copia de
-   seguridad previa), limpia caches y ejecuta las migraciones.
-4. Guarda el estado en `/usr/local/share/serversplitter` (panel, usuario web, repositorio,
+   seguridad previa), integra los enlaces en la interfaz, limpia caches y ejecuta las migraciones.
+4. Genera la clave de la API de integracion si todavia no existe (nunca la toca si ya hay una:
+   una actualizacion posterior no invalida la integracion con WHMCS/Paymenter).
+5. Guarda el estado en `/usr/local/share/serversplitter` (panel, usuario web, repositorio,
    version y una copia del codigo) e instala el comando corto `/usr/local/bin/serversplitter`.
 
 El namespace `Pterodactyl\Extensions\*` ya lo cubre el autoload del panel, asi que
@@ -54,7 +56,7 @@ Si el panel no esta en una ruta estandar:
 | `sudo serversplitter update --force` | Reinstala aunque no haya cambios en el repositorio |
 | `sudo serversplitter status` | Estado de la instalacion, provider, CLI y auto-update |
 | `sudo serversplitter version` | Version descargada |
-| `sudo serversplitter apikey` | Genera la clave de la API (`--key=CLAVE` para fijar una) |
+| `sudo serversplitter apikey` | Genera una clave de API nueva (`--key=CLAVE` para fijar una); normalmente no hace falta, ver Instalacion |
 | `sudo serversplitter info` | Configuracion y contadores actuales |
 | `sudo serversplitter prune` | Limpia cache y bloqueos caducados |
 | `sudo serversplitter autoupdate-on` | Actualizacion automatica diaria a las 04:00 |
@@ -96,38 +98,23 @@ En modo "Eggs concretos" la lista de "Reglas de eggs" global no filtra nada mas:
 eligio el admin para ese servidor es la autoridad final. En modo "No seleccionar" tampoco se
 consulta ninguna lista: la division simplemente copia el egg que el padre ya tenia instalado.
 
-## Integracion en el panel de cliente (sin recargar la pagina)
+## Integracion en el panel de cliente
 
-No existe una pagina completa propia para `/server/{id}/serversplitter`: **no hay "version antigua"**,
-solo la integrada. Como funciona segun la forma de llegar:
+La pestana "Divisiones" aparece en el menu lateral del servidor y se abre **sin recargar la
+pagina**, sustituyendo solo el area de contenido de la SPA de React. No es una integracion nativa
+de React (eso solo es posible con Blueprint, que ServerSplitter no usa a proposito): es una
+simulacion cuidadosa por JavaScript (`serversplitter-inject.js`) pensada para no romper el resto
+del panel:
 
-- **Clic en "Divisiones" desde el sidebar** (SPA ya cargada): `serversplitter-inject.js` intercepta el
-  clic, pide el contenido por `fetch()` a `/server/{id}/serversplitter/fragment` (HTML suelto) y lo
-  sustituye en el area central de la SPA, dejando el sidebar y el fondo del tema intactos.
-- **Carga real de la pagina** (F5, marcador, pestana nueva, o el redirect tras crear/eliminar una
-  division): una carga real no puede "continuar" dentro de React, tiene que arrancar de cero. Por eso
-  `SplitterController::show()` redirige a la pagina normal del servidor (`/server/{id}?ss=1`) en vez de
-  renderizar nada propio; en cuanto React termina de montar esa pagina (con reintentos, porque puede
-  tardar unos milisegundos), el script detecta el aviso `?ss=1` en la URL y sustituye el contenido con el
-  mismo mecanismo que el clic, limpiando la URL con `replaceState`. Los avisos de exito/error (crear,
-  eliminar) viajan en la propia URL (`ss_ok=` / `ss_error=`) en vez de por sesion, porque el flash de
-  sesion no sobrevive el salto extra del redirect.
-
-Es una simulacion por JavaScript, no una integracion nativa de React (eso solo es posible con Blueprint,
-que ServerSplitter no usa a proposito). Como se hace sin romper la SPA:
-
-- Los nodos que React tenia en el area de contenido **no se destruyen** al sustituirlos: se mueven (sin
-  recrearlos) a un `DocumentFragment` en memoria. Si el usuario navega a otra pestana (Console, Files...)
-  o pulsa "atras"/"adelante", se detecta interceptando `history.pushState`/`replaceState`/`popstate` (el
-  unico mecanismo que cualquier SPA usa para cambiar de ruta, sea cual sea el marcado del sidebar) y se
-  devuelven esos mismos nodos a su sitio antes de que React reaccione al cambio de URL. Asi React se
-  encuentra el DOM que el mismo creo, intacto, y puede seguir renderizando con normalidad.
-- Los formularios de dentro (crear/eliminar division) siguen siendo un POST normal: al enviarlos, el
-  navegador navega de verdad, pasa por el redirect de arriba y aterriza otra vez integrado, con el aviso
-  correspondiente.
-- Si el script no logra localizar el area de contenido de la SPA (selector no reconocido en tu tema), el
-  clic se deja como una navegacion normal (que a su vez pasa por el mismo redirect) en vez de quedarse a
-  medias.
+- Los nodos que React tenia en el area de contenido **no se destruyen** al sustituirlos: se mueven
+  (sin recrearlos) a memoria y se devuelven intactos si el usuario navega a otra pestana o pulsa
+  "atras"/"adelante", para que React los siga reconociendo como suyos.
+- Un F5, un marcador o una pestana nueva no pueden "continuar" dentro de React: arrancan la SPA de
+  cero como siempre, y en cuanto termina de montar (esperando a que el contenido se estabilice,
+  para no interrumpir la carga inicial de datos del servidor) el script sustituye el contenido
+  igual que con un clic, sin pasar nunca por una pagina con un diseno distinto.
+- Si el script no logra localizar el area de contenido de la SPA (selector no reconocido en tu
+  tema), se cae a una navegacion normal en vez de quedarse a medias.
 
 ## Protecciones incluidas
 
@@ -140,15 +127,14 @@ que ServerSplitter no usa a proposito). Como se hace sin romper la SPA:
 - Limites "comprados" por servidor (`max_splits`, `max_memory`, `max_disk`, `max_cpu`).
 - Limite de peticiones (`throttle`) en crear/eliminar divisiones desde el panel de cliente y en toda
   la API de integracion, para frenar abuso o scripts descontrolados.
-- Lista blanca de IPs opcional para la API de integracion (ademas de la clave), configurable en
-  `/admin/extensions/serversplitter` > pestana General.
 - La clave de la API se compara con `password_verify` (a tiempo constante) y se guarda hasheada;
   nunca se registra ni se puede volver a mostrar.
 
 ## API de integracion (WHMCS / Paymenter)
 
-Autenticacion por cabecera `X-Splitter-Key` (o `Authorization: Bearer <clave>`).
-La clave se guarda **hasheada**; si no hay clave configurada, la API responde `503`.
+Autenticacion por cabecera `X-Splitter-Key` (o `Authorization: Bearer <clave>`). La clave se
+genera sola durante la instalacion (ver arriba) y se guarda **hasheada**; si por lo que sea no hay
+ninguna configurada, la API responde `503`.
 
 `{server}` acepta el UUID corto, el UUID completo, el `external_id` o el ID interno.
 
@@ -198,9 +184,10 @@ Equivalentes directos por si prefieres usar artisan (desde el directorio del pan
     VERSION                            Version del paquete
     install.sh                         Instalador publico (descarga el gestor)
     serversplitter.sh                  Gestor: install / update / uninstall / autoupdate
-    scripts/addon-install.sh           Instalador interno (copia, provider, migraciones)
+    scripts/addon-install.sh           Instalador interno (copia, provider, migraciones, clave de API)
     bin/serversplitter                 Comando corto: delega en el gestor
     tools/register-provider.php        Registro del ServiceProvider en el panel
+    tools/patch-panel.php              Enlaces en el menu de admin y en el panel de cliente
     src/config/serversplitter.php      Valores por defecto
     src/database/migrations/           Tablas de la extension
     src/Models/                        Ajustes, divisiones, reglas de egg, limites

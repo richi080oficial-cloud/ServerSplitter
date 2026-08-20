@@ -297,6 +297,13 @@ do_install() {
     info "Ejecutando migraciones…"
     artisan migrate --force || die "Las migraciones fallaron. Revisa la conexión a la base de datos."
 
+    # Genera la clave de la API de integración automáticamente si todavía no
+    # existe (primera instalación); en actualizaciones posteriores ya hay una
+    # y --if-missing la deja tal cual, así nunca se invalida la integración
+    # con WHMCS/Paymenter por accidente.
+    info "Comprobando la clave de la API de integración…"
+    artisan "$ARTISAN_NAMESPACE" apikey --if-missing || warn "No se pudo generar la clave de la API automáticamente; ejecuta 'sudo serversplitter apikey' a mano."
+
     install_cli
     fix_permissions
     clear_caches
@@ -304,11 +311,10 @@ do_install() {
     local url; url="$(app_url)"
     ok "ServerSplitter v${ADDON_VERSION} instalado correctamente."
     printf '\n  %sAdministración:%s  %s/admin/extensions/serversplitter\n' "$C_BOLD" "$C_RESET" "${url:-https://tu-panel}"
-    printf '  %sCliente:%s         %s/serversplitter\n' "$C_BOLD" "$C_RESET" "${url:-https://tu-panel}"
+    printf '  %sCliente:%s         pestaña «Divisiones» en cada servidor (menú lateral)\n' "$C_BOLD" "$C_RESET"
     printf '  %sAPI:%s             %s/api/serversplitter/servers/{server}\n' "$C_BOLD" "$C_RESET" "${url:-https://tu-panel}"
-    printf '  %sEnlaces:%s         menú lateral del admin y pestaña «Divisiones» del servidor\n' "$C_BOLD" "$C_RESET"
-    printf '\n  La API de integración responde 503 hasta que generes la clave:\n'
-    printf '  %ssudo serversplitter apikey%s\n\n' "$C_BOLD" "$C_RESET"
+    printf '\n  La clave de la API se ha generado automáticamente (mira el mensaje de arriba si es la\n'
+    printf '  primera instalación). Para verla otra vez o generar una nueva: %ssudo serversplitter apikey%s\n\n' "$C_BOLD" "$C_RESET"
 }
 
 install_cli() {
