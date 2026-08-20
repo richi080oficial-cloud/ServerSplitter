@@ -246,20 +246,39 @@
     }
 
     /**
-     * Primer elemento realmente visible (con tamano en pantalla) de una
-     * lista. Varios temas dejan en el DOM una copia oculta del sidebar para
-     * otro breakpoint (version movil/escritorio, ambas presentes a la vez,
-     * una tapada con display:none) y querySelector() se queda sin mas con
-     * la primera que encuentra, sea o no la visible. Si esa copia oculta es
-     * la elegida, las coordenadas que se calculan a partir de ella
-     * (getBoundingClientRect) son todo ceros o corresponden a un layout que
-     * no es el que ve el usuario, y el portal (posicionado por coordenadas,
-     * ver ensurePortal/renderPortal) termina solapado con contenido real
-     * que no tiene nada que ver. Visto en produccion: el enlace "Divisiones"
-     * aparecia con texto solapado con otro elemento del sidebar.
+     * Entre varios candidatos, el primero realmente visible (con tamano en
+     * pantalla); si ninguno lo es todavia, el primero de todos de todas
+     * formas, NUNCA null habiendo al menos un candidato.
+     *
+     * Por que preferir el visible: varios temas dejan en el DOM una copia
+     * oculta del sidebar para otro breakpoint (version movil/escritorio,
+     * ambas presentes a la vez, una tapada con display:none), y quedarse
+     * sin mas con la primera que devuelve querySelector (sea o no la
+     * visible) puede hacer que el portal (posicionado por coordenadas, ver
+     * ensurePortal/renderPortal) calcule su posicion a partir de la copia
+     * oculta y termine solapado con contenido real que no tiene nada que
+     * ver (visto en produccion).
+     *
+     * Por que NO devolver null cuando el unico candidato mide 0x0: eso
+     * tambien pasa de forma normal y transitoria justo despues de navegar,
+     * mientras React todavia no ha terminado de pintar los hijos de ese
+     * contenedor. La primera version de esta funcion devolvia null en ese
+     * caso, y targetFor() lo interpretaba como "este grupo no existe en la
+     * pagina", cayendo al hueco equivocado del sidebar (visto en
+     * produccion: "Divisiones" enganchado bajo Dashboard/Consola en vez de
+     * bajo Add-ons). Por eso solo se descarta un candidato con tamano cero
+     * cuando hay OTRO con tamano real donde elegir; si no, se devuelve tal
+     * cual (la siguiente llamada, en el proximo tick del MutationObserver,
+     * ya lo encontrara con contenido).
      */
     function firstVisible(elements) {
+        var fallback = null;
+
         for (var i = 0; i < elements.length; i++) {
+            if (fallback === null) {
+                fallback = elements[i];
+            }
+
             var rect = elements[i].getBoundingClientRect();
 
             if (rect.width > 0 && rect.height > 0) {
@@ -267,7 +286,7 @@
             }
         }
 
-        return null;
+        return fallback;
     }
 
     /**
