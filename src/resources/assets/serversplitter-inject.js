@@ -548,6 +548,14 @@
     }
 
     /**
+     * "Firma" barata del contenido de un elemento, para detectar cuando deja
+     * de cambiar sin comparar el HTML entero en cada intento.
+     */
+    function contentSignature(el) {
+        return el.children.length + ':' + el.textContent.length;
+    }
+
+    /**
      * Al cargar la pagina (F5, marcador, pestana nueva, o tras enviar un
      * formulario de crear/eliminar division) puede venir un aviso en la URL:
      *   ?ss=1                 abrir ServerSplitter para este servidor
@@ -557,9 +565,19 @@
      * SplitterController::show()/back() redirigen aqui en vez de renderizar
      * una pagina propia: una carga real no puede "continuar" dentro de la
      * SPA, tiene que arrancar de cero, asi que se deja que Pterodactyl monte
-     * su pagina normal del servidor y, en cuanto el area de contenido existe,
-     * se sustituye por el fragmento, con reintentos porque React puede
-     * tardar unos milisegundos en montar tras la carga del script.
+     * su pagina normal del servidor y, cuando esta lista, se sustituye por
+     * el fragmento.
+     *
+     * "Lista" no es solo "el area de contenido existe": justo despues de
+     * montar, React todavia esta cargando ahi dentro (un <Spinner> mientras
+     * pide los datos del servidor). Sustituir el contenido en ese momento le
+     * arranca el DOM de debajo mientras todavia lo esta usando y lo hace
+     * fallar (visto en produccion: "Uncaught" en <Spinner>, seguido de que
+     * React reconstruye el arbol entero desde cero y reconecta el websocket
+     * en bucle hasta chocar con el limite de peticiones, 429). Por eso se
+     * espera a que el contenido lleve varios intentos seguidos SIN cambiar
+     * (contentSignature estable) antes de tocar nada: eso indica que React
+     * ya termino de cargar esa vista y no va a seguir escribiendo ahi.
      */
     function autoOpenIfRequested() {
         var params = new URLSearchParams(window.location.search);
@@ -579,23 +597,12 @@
 
         var cleanHref = '/server/' + encodeURIComponent(identifier) + '/serversplitter';
         var attempts = 0;
-        var maxAttempts = 100; // ~5s a 50ms: tiempo de sobra para que React monte.
+        var maxAttempts = 150; // ~15s de margen total a 100ms por intento.
+        var stableTicks = 0;
+        var requiredStableTicks = 5; // ~500ms sin cambios en el contenido.
+        var lastSignature = null;
 
-        var tryOpen = function () {
-            var contentEl = findContentContainer();
-
-            if (contentEl === null) {
-                attempts++;
-
-                if (attempts < maxAttempts) {
-                    window.setTimeout(tryOpen, 50);
-                } else {
-                    log('no se pudo auto-abrir ServerSplitter: no se encontro el area de contenido a tiempo');
-                }
-
-                return;
-            }
-
+        var doSwap = function (contentEl) {
             // Se limpia la URL (quita ?ss=1&...) con replaceState: esto no es
             // una navegacion nueva de verdad, es continuar la que ya traia la
             // URL, asi que no debe anadir una entrada al historial.
@@ -604,6 +611,49 @@
             swapInFragment(contentEl, identifier, status, message).catch(function (error) {
                 log('fallo al auto-abrir el fragmento:', error);
             });
+        };
+
+        var tryOpen = function () {
+            var contentEl = findContentContainer();
+
+            if (contentEl === null) {
+                attempts++;
+
+                if (attempts < maxAttempts) {
+                    window.setTimeout(tryOpen, 100);
+                } else {
+                    log('no se pudo auto-abrir ServerSplitter: no se encontro el area de contenido a tiempo');
+                }
+
+                return;
+            }
+
+            var signature = contentSignature(contentEl);
+
+            if (signature !== lastSignature) {
+                lastSignature = signature;
+                stableTicks = 0;
+            } else {
+                stableTicks++;
+            }
+
+            attempts++;
+
+            if (stableTicks >= requiredStableTicks) {
+                log('contenido de la SPA estable, auto-abriendo ServerSplitter para ' + identifier);
+                doSwap(contentEl);
+
+                return;
+            }
+
+            if (attempts < maxAttempts) {
+                window.setTimeout(tryOpen, 100);
+
+                return;
+            }
+
+            log('el contenido de la SPA no se termino de estabilizar; se abre igualmente para no dejar la pagina colgada');
+            doSwap(contentEl);
         };
 
         tryOpen();
