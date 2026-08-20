@@ -785,6 +785,20 @@
             // URL, asi que no debe anadir una entrada al historial.
             ourReplaceState({ serversplitter: true }, cleanHref);
 
+            // Si la pagina de la que se viene (Subdomains, Files...) estaba
+            // desplazada hacia abajo, ese scroll se queda tal cual al
+            // sustituir el contenido: el fragmento aparece a mitad, con su
+            // titulo fuera de la vista por arriba y el siguiente parrafo
+            // cortado justo en el borde superior (visto en produccion).
+            // loadIntoContent() ya hacia este reset para el clic en el
+            // sidebar; aqui faltaba para la apertura automatica al
+            // recargar/redirigir. Se hace ya (la pantalla de carga sigue
+            // tapandolo todo) para que no se note el salto. Se resetean
+            // tanto la ventana como el propio contenedor de contenido, por
+            // si el tema hace scroll internamente en vez de en la ventana.
+            window.scrollTo(0, 0);
+            contentEl.scrollTop = 0;
+
             swapInFragment(contentEl, identifier, status, message).then(function () {
                 hideLoadingOverlay();
             }).catch(function (error) {
