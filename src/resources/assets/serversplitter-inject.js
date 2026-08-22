@@ -61,13 +61,6 @@
     var swapped = false;
 
     /**
-     * Log deshabilitado en produccion.
-     */
-    function log() {
-        // Logs removidos
-    }
-
-    /**
      * Cache por servidor del resultado de /server/<id>/serversplitter/availability:
      * true (mostrar), false (ocultar) o 'pending' mientras se resuelve. Solo se
      * consulta una vez por servidor y por carga de pagina.
@@ -1144,7 +1137,6 @@
                     && !variant.hasAttribute('data-serversplitter-fragment-root')
                     && !variant.closest('[data-serversplitter-fragment-root]')) {
 
-                    log('eliminando contenedor [class*="Fade__Container"] con error 404:', variant);
                     detach(variant);
                     removed = true;
                 }
@@ -1164,7 +1156,6 @@
                     && !boundary.hasAttribute('data-serversplitter-fragment-root')
                     && !boundary.closest('[data-serversplitter-fragment-root]')) {
 
-                    log('eliminando error-boundary con error 404:', boundary);
                     detach(boundary);
                     removed = true;
                 }
@@ -1187,7 +1178,6 @@
                     && wrapper.parentNode !== null
                     && wrapper.parentNode !== document.body) {
 
-                    log('eliminando contenedor vacio (probablemente wrapper del 404):', wrapper);
                     detach(wrapper);
                     removed = true;
                 }
