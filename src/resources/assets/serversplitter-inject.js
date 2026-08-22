@@ -61,16 +61,10 @@
     var swapped = false;
 
     /**
-     * Log con prefijo propio, visible en el filtro "Default" de la consola
-     * del navegador (console.debug queda oculto ahi en algunos navegadores
-     * bajo el filtro "Verbose", asi que se usa console.log a proposito).
+     * Log deshabilitado en produccion.
      */
     function log() {
-        if (window.console && typeof window.console.log === 'function') {
-            var args = Array.prototype.slice.call(arguments);
-            args.unshift('[ServerSplitter]');
-            window.console.log.apply(window.console, args);
-        }
+        // Logs removidos
     }
 
     /**
@@ -320,17 +314,11 @@
             if (sample !== null) {
                 return { container: group, sample: sample };
             }
-
-            log('se encontro ' + GROUP_SELECTOR + ' pero sin ningun <a> dentro para usar de plantilla');
         } else {
-            log(GROUP_SELECTOR + ' no existe en esta pagina, probando la barra de navegacion clasica');
+            // GROUP_SELECTOR no existe, probando barra de navegacion clasica
         }
 
         var legacy = legacyNavigation(identifier);
-
-        if (legacy === null) {
-            log('tampoco se encontro a[href="/server/' + identifier + '"] con hermanos');
-        }
 
         return legacy;
     }
@@ -397,7 +385,6 @@
             return response.json();
         }).then(function (payload) {
             availability[identifier] = !!(payload && payload.available);
-            log('respuesta de availability para ' + identifier + ':', payload);
 
             if (payload && typeof payload.url === 'string' && payload.url !== '') {
                 links[identifier] = payload.url;
@@ -407,7 +394,6 @@
         }).catch(function (error) {
             // Sesion caducada, extension desinstalada o red caida: no se
             // inyecta nada y el panel sigue funcionando igual.
-            log('fallo la peticion de availability para ' + identifier + ':', error);
             availability[identifier] = false;
         });
 
@@ -429,8 +415,6 @@
             var el = firstVisible(document.querySelectorAll(CONTENT_CANDIDATES[i]));
 
             if (el !== null) {
-                log('area de contenido encontrada con el selector "' + CONTENT_CANDIDATES[i] + '"');
-
                 return el;
             }
         }
@@ -459,8 +443,6 @@
             }
 
             if (best !== null) {
-                log('area de contenido deducida por tamano (hermano de', node, '):', best);
-
                 return best;
             }
 
@@ -540,8 +522,6 @@
         for (var i = 0; i < hiddenChildren.length; i++) {
             hiddenChildren[i].node.style.display = hiddenChildren[i].display;
         }
-
-        log('contenido original de la SPA restaurado');
 
         currentContentEl = null;
         hiddenChildren = [];
@@ -675,7 +655,6 @@
 
             reinitFragmentScripts();
             schedule();
-            log('contenido sustituido en sitio para ' + identifier + ' (sin recargar la pagina)');
         });
     }
 
@@ -689,7 +668,6 @@
             ourPushState({ serversplitter: true }, href);
             window.scrollTo(0, 0);
         }).catch(function (error) {
-            log('fallo al cargar el fragmento, navegando normal a ' + href + ':', error);
             window.location.href = href;
         });
     }
@@ -834,7 +812,6 @@
             swapInFragment(contentEl, identifier, status, message).then(function () {
                 hideLoadingOverlay();
             }).catch(function (error) {
-                log('fallo al auto-abrir el fragmento:', error);
                 hideLoadingOverlay();
             });
         };
@@ -848,7 +825,6 @@
                 if (attempts < maxAttempts) {
                     window.setTimeout(tryOpen, 100);
                 } else {
-                    log('no se pudo auto-abrir ServerSplitter: no se encontro el area de contenido a tiempo');
                     hideLoadingOverlay();
                 }
 
@@ -867,7 +843,6 @@
             attempts++;
 
             if (stableTicks >= requiredStableTicks) {
-                log('contenido de la SPA estable, auto-abriendo ServerSplitter para ' + identifier);
                 doSwap(contentEl);
 
                 return;
@@ -879,7 +854,6 @@
                 return;
             }
 
-            log('el contenido de la SPA no se termino de estabilizar; se abre igualmente para no dejar la pagina colgada');
             doSwap(contentEl);
         };
 
@@ -917,8 +891,6 @@
         var contentEl = findContentContainer();
 
         if (contentEl === null) {
-            log('no se encontro el area de contenido de la SPA; navegando de forma normal a ' + href);
-
             return;
         }
 
@@ -998,8 +970,6 @@
 
         var link = build(template, identifier);
         addonsGroup.appendChild(link);
-
-        log('servidor ' + identifier + ': enlace inyectado directamente en', addonsGroup);
     }
 
     /**
@@ -1038,7 +1008,6 @@
         var identifier = currentIdentifier();
 
         if (identifier === null) {
-            log('no estamos en una pagina de servidor (pathname: ' + window.location.pathname + ')');
             detach(fallbackLink());
 
             return;
@@ -1047,7 +1016,6 @@
         var available = isAvailable(identifier);
 
         if (available !== true) {
-            log('servidor ' + identifier + ': disponibilidad =', available);
             detach(fallbackLink());
 
             return;
@@ -1056,12 +1024,6 @@
         var target = targetFor(identifier);
 
         if (target === null) {
-            log(
-                'servidor ' + identifier + ': disponible, pero no se encontro ningun hueco en el sidebar ' +
-                '(ni ' + GROUP_SELECTOR + ' ni la barra de navegacion clasica). Se muestra el enlace flotante ' +
-                'de emergencia; manda una captura del sidebar completo (Elements de DevTools) para ajustar el selector.'
-            );
-
             if (fallbackLink() === null) {
                 document.body.appendChild(buildFloatingLink(identifier));
             }
@@ -1122,7 +1084,6 @@
                 suppressHistoryGuard = false;
             } else if (swapped && wasInServerSplitter && !isInServerSplitter) {
                 // Solo restaura cuando se sale DE /serversplitter hacia FUERA.
-                log('la SPA navega FUERA de ServerSplitter: restaurando el contenido original');
                 restoreOriginalContent();
             }
 
@@ -1168,7 +1129,6 @@
                     && !fade.hasAttribute('data-serversplitter-fragment-root')
                     && !fade.closest('[data-serversplitter-fragment-root]')) {
 
-                    log('eliminando contenedor .Fade__Container-sc-1p0gm8n-0 con error 404:', fade);
                     detach(fade);
                     removed = true;
                 }
@@ -1264,8 +1224,6 @@
     }
 
     function start() {
-        log('script cargado y arrancado en', window.location.pathname);
-
         // watchHistory() tiene que estar instalado ANTES de que nada llame a
         // ourReplaceState/ourPushState.
         watchHistory('pushState');
@@ -1298,7 +1256,6 @@
             }
 
             if (swapped && !isInServerSplitterRoute()) {
-                log('atras/adelante del navegador: saliendo de ServerSplitter, restaurando el contenido original');
                 restoreOriginalContent();
             }
 
