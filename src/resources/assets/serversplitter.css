@@ -554,18 +554,54 @@ main.ss-container {
     display: none;
 }
 
-main.ss-container {
-    margin-top: 60px;
+.ss-server-title {
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin: 0 0 24px;
+    color: var(--ss-text);
+    letter-spacing: -0.02em;
 }
 
+main.ss-container {
+    margin-top: 0;
+}
+
+/* Tarjetas con efecto translúcido */
+.ss-card {
+    background: rgba(28, 33, 40, 0.5);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(43, 50, 60, 0.4);
+}
+
+/* Estadísticas con efecto translúcido */
 .ss-stat {
-    background: rgba(34, 40, 49, 0.7);
-    backdrop-filter: blur(4px);
+    background: rgba(34, 40, 49, 0.6);
+    backdrop-filter: blur(6px);
+    border: 1px solid rgba(43, 50, 60, 0.3);
+}
+
+.ss-alert {
+    background: rgba(28, 33, 40, 0.5);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(43, 50, 60, 0.4);
 }
 
 @media (prefers-color-scheme: light) {
+    .ss-card {
+        background: rgba(255, 255, 255, 0.65);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(213, 219, 227, 0.5);
+    }
+    
     .ss-stat {
         background: rgba(240, 243, 247, 0.7);
-        backdrop-filter: blur(4px);
+        backdrop-filter: blur(6px);
+        border: 1px solid rgba(213, 219, 227, 0.4);
+    }
+    
+    .ss-alert {
+        background: rgba(255, 255, 255, 0.65);
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(213, 219, 227, 0.5);
     }
 }
