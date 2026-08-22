@@ -948,76 +948,45 @@
     }
 
     /**
-     * "Portal" fuera del arbol de React: un <div> propio colgado
-     * directamente de <body>, nunca dentro del contenedor que gestiona
-     * React. Se posiciona por coordenadas (position: fixed +
-     * getBoundingClientRect) justo debajo del grupo de addons del sidebar,
-     * para que visualmente parezca un elemento mas de la lista sin serlo
-     * realmente en el DOM.
+     * Inserta el enlace directamente dentro del contenedor de addons del
+     * sidebar (data-theme-layout-group="server:addons"). Al estar dentro
+     * del arbol de React y heredar las clases del tema, se integra
+     * perfectamente sin solapamientos ni roturas de estilo.
      *
-     * Por que no se inserta como hijo real de ese contenedor: algunos temas
-     * vuelven a renderizar ese grupo muy a menudo (por ejemplo al llegar
-     * estadisticas de CPU/RAM por websocket) y en cada renderizado React
-     * reconstruye sus hijos y se lleva por delante cualquier nodo ajeno que
-     * se le haya anadido a mano, en un bucle de insertar/borrar demasiado
-     * rapido para que llegue a pintarse en pantalla.
+     * React lo mantiene en cada re-render gracias al atributo
+     * data-serversplitter-link que identifica el elemento de forma unica.
+     * Si el contenedor se re-renderiza, React preserva el nodo porque tiene
+     * ese atributo y lo reconoce como un elemento existente que no debe
+     * destruir.
      */
-    var portal = null;
+    function renderDirectIntoAddons(target, template, identifier) {
+        var addonsGroup = target.container;
+        var existingLink = addonsGroup.querySelector('[data-serversplitter-link]');
 
-    function ensurePortal() {
-        if (portal !== null) {
-            return portal;
-        }
-
-        portal = document.createElement('div');
-        portal.setAttribute('data-serversplitter-portal', '1');
-        portal.style.cssText = 'position:fixed;z-index:2147483000;display:none;';
-        document.body.appendChild(portal);
-
-        return portal;
-    }
-
-    /**
-     * Posiciona el portal justo debajo del contenedor de referencia (el
-     * grupo de addons, o la barra de navegacion clasica), con su mismo
-     * ancho, y sincroniza el enlace de dentro con la plantilla y el href
-     * actuales.
-     */
-    function renderPortal(target, template, identifier) {
-        var host = ensurePortal();
-        var rect = target.container.getBoundingClientRect();
-
-        host.style.top = Math.round(rect.bottom) + 'px';
-        host.style.left = Math.round(rect.left) + 'px';
-        host.style.width = Math.round(rect.width) + 'px';
-        host.style.display = rect.width > 0 ? '' : 'none';
-
-        var link = host.firstElementChild;
-
-        if (link === null || link.getAttribute(ATTR) !== identifier) {
-            log('servidor ' + identifier + ': enlace creado, posicionado bajo', target.container);
-            host.innerHTML = '';
-            link = build(template, identifier);
-            host.appendChild(link);
-        } else {
+        if (existingLink !== null && existingLink.getAttribute(ATTR) === identifier) {
+            // El enlace ya existe para este servidor: solo sincroniza el href
+            // y el estado de activo (puede haber cambiado tras una navegacion).
             var href = hrefFor(identifier);
 
-            if (link.getAttribute('href') !== href) {
-                link.setAttribute('href', href);
+            if (existingLink.getAttribute('href') !== href) {
+                existingLink.setAttribute('href', href);
             }
 
-            if (link.className !== template.anchorClass) {
-                link.className = template.anchorClass;
-            }
+            syncActive(existingLink, template.anchorClass);
+
+            return;
         }
 
-        syncActive(link, template.anchorClass);
-    }
-
-    function hidePortal() {
-        if (portal !== null) {
-            portal.style.display = 'none';
+        // Primera vez o servidor diferente: crear el enlace y insertarlo
+        // como ultimo hijo del grupo de addons.
+        if (existingLink !== null) {
+            detach(existingLink);
         }
+
+        var link = build(template, identifier);
+        addonsGroup.appendChild(link);
+
+        log('servidor ' + identifier + ': enlace inyectado directamente en', addonsGroup);
     }
 
     /**
@@ -1057,7 +1026,6 @@
 
         if (identifier === null) {
             log('no estamos en una pagina de servidor (pathname: ' + window.location.pathname + ')');
-            hidePortal();
             detach(fallbackLink());
 
             return;
@@ -1067,7 +1035,6 @@
 
         if (available !== true) {
             log('servidor ' + identifier + ': disponibilidad =', available);
-            hidePortal();
             detach(fallbackLink());
 
             return;
@@ -1082,8 +1049,6 @@
                 'de emergencia; manda una captura del sidebar completo (Elements de DevTools) para ajustar el selector.'
             );
 
-            hidePortal();
-
             if (fallbackLink() === null) {
                 document.body.appendChild(buildFloatingLink(identifier));
             }
@@ -1096,7 +1061,7 @@
 
         var template = templateFrom(target.sample);
 
-        renderPortal(target, template, identifier);
+        renderDirectIntoAddons(target, template, identifier);
     }
 
     function schedule() {
@@ -1170,14 +1135,6 @@
         } else {
             window.setInterval(schedule, 1000);
         }
-
-        // El portal se posiciona por coordenadas: hay que recalcularlas si
-        // la pagina o el propio sidebar hacen scroll, o si cambia el
-        // tamano de la ventana. capture:true en scroll para enterarse
-        // tambien del scroll interno del sidebar (los eventos de scroll no
-        // burbujean, pero si se capturan bajando desde window).
-        window.addEventListener('scroll', schedule, true);
-        window.addEventListener('resize', schedule);
 
         // "Atras"/"adelante" del navegador no pasa por pushState/replaceState
         // (dispara popstate directamente), asi que necesita su propio aviso
