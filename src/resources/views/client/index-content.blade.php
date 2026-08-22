@@ -11,7 +11,6 @@
 --}}
 @php($distribute = $state['mode'] === 'distribute')
 
-<h1 class="ss-title">{{ $server->name }}</h1>
 <p class="ss-muted">
     Divisiones usadas: <strong>{{ $state['splits_used'] }}</strong> de
     <strong>{{ $state['splits_unlimited'] ? 'ilimitadas' : $state['splits_max'] }}</strong>
