@@ -21,8 +21,11 @@
 
     /* Si algo se nos escapa de calculo, que haga scroll en vez de recortarse. */
     .ss-admin {
+        width: 100%;
         max-width: 100%;
         overflow-x: hidden;
+        display: block;
+        clear: both;
     }
 
     .ss-admin .row {
