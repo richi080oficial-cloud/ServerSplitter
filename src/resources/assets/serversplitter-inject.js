@@ -1121,68 +1121,133 @@
     }
 
     /**
-     * Oculta o elimina el contenedor de error 404 de React cuando estamos en
-     * la ruta de ServerSplitter. React renderiza un contenedor con clase
-     * .Fade__Container-sc-1p0gm8n-0 que muestra "404 Not Found" porque no
-     * reconoce la ruta /serversplitter. Este observador lo detecta y lo
-     * oculta, permitiendo que solo nuestro fragmento sea visible.
+     * Escanea y ELIMINA AGRESIVAMENTE el contenedor de error 404 de React
+     * cuando estamos en la ruta de ServerSplitter. React renderiza un
+     * contenedor con clase .Fade__Container-sc-1p0gm8n-0 que muestra "404
+     * Not Found" porque no reconoce la ruta /serversplitter.
+     *
+     * Esta funcion usa THREE estrategias en paralelo para garantizar
+     * eliminacion total:
+     *
+     * 1. setInterval: Bucle continuo cada 50ms que busca y elimina el error
+     * 2. MutationObserver: Reacciona inmediatamente a cambios en el DOM
+     * 3. Limpieza de padres vacios: Elimina contenedores wrapper que quedan
+     *    vacios tras remover el error
+     *
+     * Todo ocurre mientras estemos en /serversplitter. No afecta ningun
+     * contenido de nuestro fragmento.
      */
     function watchFor404Container() {
-        if (typeof window.MutationObserver !== 'function') {
-            return;
+        /**
+         * Busca y ELIMINA (no solo oculta) elementos de error 404.
+         * Retorna true si encontro y elimino algo, false si no.
+         */
+        function scanAndRemove404() {
+            var removed = false;
+
+            // Estrategia 1: La clase especifica del contenedor Fade de error
+            var fadeContainers = document.querySelectorAll('.Fade__Container-sc-1p0gm8n-0');
+            for (var i = 0; i < fadeContainers.length; i++) {
+                var fade = fadeContainers[i];
+                var text = fade.textContent || '';
+
+                if ((text.indexOf('404') !== -1 || text.indexOf('Not Found') !== -1)
+                    && !fade.hasAttribute('data-serversplitter-fragment-root')
+                    && !fade.closest('[data-serversplitter-fragment-root]')) {
+
+                    log('eliminando contenedor .Fade__Container-sc-1p0gm8n-0 con error 404:', fade);
+                    detach(fade);
+                    removed = true;
+                }
+            }
+
+            // Estrategia 2: Cualquier elemento con clase que mencione Fade/Container
+            var fadeVariants = document.querySelectorAll('[class*="Fade__Container"]');
+            for (var j = 0; j < fadeVariants.length; j++) {
+                var variant = fadeVariants[j];
+                var variantText = variant.textContent || '';
+
+                if ((variantText.indexOf('404') !== -1 || variantText.indexOf('Not Found') !== -1)
+                    && !variant.hasAttribute('data-serversplitter-fragment-root')
+                    && !variant.closest('[data-serversplitter-fragment-root]')) {
+
+                    log('eliminando contenedor [class*="Fade__Container"] con error 404:', variant);
+                    detach(variant);
+                    removed = true;
+                }
+            }
+
+            // Estrategia 3: Contenedores de error genéricos
+            var errorBoundaries = document.querySelectorAll(
+                '[class*="error-boundary"], ' +
+                '[class*="ErrorBoundary"], ' +
+                'div[role="alert"]'
+            );
+            for (var k = 0; k < errorBoundaries.length; k++) {
+                var boundary = errorBoundaries[k];
+                var boundaryText = boundary.textContent || '';
+
+                if ((boundaryText.indexOf('404') !== -1 || boundaryText.indexOf('Not Found') !== -1)
+                    && !boundary.hasAttribute('data-serversplitter-fragment-root')
+                    && !boundary.closest('[data-serversplitter-fragment-root]')) {
+
+                    log('eliminando error-boundary con error 404:', boundary);
+                    detach(boundary);
+                    removed = true;
+                }
+            }
+
+            // Estrategia 4: Limpieza de contenedores padres que hayan quedado vacios
+            // tras eliminar el error 404. Esto evita que wrappers div/section vacios
+            // sigan ocupando espacio o interfiriendo con layouts.
+            var potentialWrappers = document.querySelectorAll(
+                '[class*="Fade"], [class*="Container"], [role="status"]'
+            );
+            for (var m = 0; m < potentialWrappers.length; m++) {
+                var wrapper = potentialWrappers[m];
+
+                // Si esta vacio (solo espacios/saltos de linea) y no es parte de nuestro fragmento
+                if ((wrapper.textContent || '').trim() === ''
+                    && !wrapper.hasAttribute('data-serversplitter-fragment-root')
+                    && !wrapper.closest('[data-serversplitter-fragment-root]')
+                    && wrapper.children.length === 0
+                    && wrapper.parentNode !== null
+                    && wrapper.parentNode !== document.body) {
+
+                    log('eliminando contenedor vacio (probablemente wrapper del 404):', wrapper);
+                    detach(wrapper);
+                    removed = true;
+                }
+            }
+
+            return removed;
         }
 
-        new window.MutationObserver(function (mutations) {
-            // Solo actua si estamos en la ruta de ServerSplitter
+        // Estrategia A: MutationObserver para reaccionar inmediatamente a cambios
+        if (typeof window.MutationObserver === 'function') {
+            new window.MutationObserver(function (mutations) {
+                // Solo actua si estamos en la ruta de ServerSplitter
+                if (!isInServerSplitterRoute()) {
+                    return;
+                }
+
+                scanAndRemove404();
+            }).observe(document.documentElement, {
+                childList: true,
+                subtree: true
+            });
+        }
+
+        // Estrategia B: setInterval para escaneo continuo cada 50ms
+        // Esto caza errores 404 que aparezcan entre mutaciones o en navegadores
+        // sin soporte MutationObserver (muy raro, pero seguro).
+        window.setInterval(function () {
             if (!isInServerSplitterRoute()) {
                 return;
             }
 
-            // Busca cualquier contenedor que podria ser el error 404
-            // (clases comunes de Fade/Error en Pterodactyl)
-            var errorContainers = document.querySelectorAll(
-                '.Fade__Container-sc-1p0gm8n-0, ' +
-                '[class*="Fade__Container"], ' +
-                '[class*="error-boundary"], ' +
-                '[class*="ErrorBoundary"]'
-            );
-
-            for (var i = 0; i < errorContainers.length; i++) {
-                var container = errorContainers[i];
-                var text = container.textContent || '';
-
-                // Si el contenedor contiene "404" o "Not Found", se oculta
-                if (text.indexOf('404') !== -1 || text.indexOf('Not Found') !== -1) {
-                    if (container.style.display !== 'none') {
-                        container.style.display = 'none';
-                        log('contenedor de error 404 detectado y ocultado:', container);
-                    }
-                }
-            }
-
-            // Tambien busca y oculta contenedores genericos de error que no sean nuestros
-            var allContainers = document.querySelectorAll('div[role="alert"], [class*="error"]');
-            for (var j = 0; j < allContainers.length; j++) {
-                var el = allContainers[j];
-                var content = el.textContent || '';
-
-                // Si contiene "404" y no es parte de nuestro fragmento
-                if ((content.indexOf('404') !== -1 || content.indexOf('Not Found') !== -1)
-                    && !el.hasAttribute('data-serversplitter-fragment-root')
-                    && !el.closest('[data-serversplitter-fragment-root]')) {
-
-                    if (el.style.display !== 'none') {
-                        el.style.display = 'none';
-                        log('elemento de error 404 ocultado:', el);
-                    }
-                }
-            }
-        }).observe(document.documentElement, {
-            childList: true,
-            subtree: true,
-            characterData: false,
-            attributes: false
-        });
+            scanAndRemove404();
+        }, 50);
     }
 
     function start() {
