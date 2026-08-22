@@ -1120,6 +1120,71 @@
         };
     }
 
+    /**
+     * Oculta o elimina el contenedor de error 404 de React cuando estamos en
+     * la ruta de ServerSplitter. React renderiza un contenedor con clase
+     * .Fade__Container-sc-1p0gm8n-0 que muestra "404 Not Found" porque no
+     * reconoce la ruta /serversplitter. Este observador lo detecta y lo
+     * oculta, permitiendo que solo nuestro fragmento sea visible.
+     */
+    function watchFor404Container() {
+        if (typeof window.MutationObserver !== 'function') {
+            return;
+        }
+
+        new window.MutationObserver(function (mutations) {
+            // Solo actua si estamos en la ruta de ServerSplitter
+            if (!isInServerSplitterRoute()) {
+                return;
+            }
+
+            // Busca cualquier contenedor que podria ser el error 404
+            // (clases comunes de Fade/Error en Pterodactyl)
+            var errorContainers = document.querySelectorAll(
+                '.Fade__Container-sc-1p0gm8n-0, ' +
+                '[class*="Fade__Container"], ' +
+                '[class*="error-boundary"], ' +
+                '[class*="ErrorBoundary"]'
+            );
+
+            for (var i = 0; i < errorContainers.length; i++) {
+                var container = errorContainers[i];
+                var text = container.textContent || '';
+
+                // Si el contenedor contiene "404" o "Not Found", se oculta
+                if (text.indexOf('404') !== -1 || text.indexOf('Not Found') !== -1) {
+                    if (container.style.display !== 'none') {
+                        container.style.display = 'none';
+                        log('contenedor de error 404 detectado y ocultado:', container);
+                    }
+                }
+            }
+
+            // Tambien busca y oculta contenedores genericos de error que no sean nuestros
+            var allContainers = document.querySelectorAll('div[role="alert"], [class*="error"]');
+            for (var j = 0; j < allContainers.length; j++) {
+                var el = allContainers[j];
+                var content = el.textContent || '';
+
+                // Si contiene "404" y no es parte de nuestro fragmento
+                if ((content.indexOf('404') !== -1 || content.indexOf('Not Found') !== -1)
+                    && !el.hasAttribute('data-serversplitter-fragment-root')
+                    && !el.closest('[data-serversplitter-fragment-root]')) {
+
+                    if (el.style.display !== 'none') {
+                        el.style.display = 'none';
+                        log('elemento de error 404 ocultado:', el);
+                    }
+                }
+            }
+        }).observe(document.documentElement, {
+            childList: true,
+            subtree: true,
+            characterData: false,
+            attributes: false
+        });
+    }
+
     function start() {
         log('script cargado y arrancado en', window.location.pathname);
 
@@ -1130,6 +1195,9 @@
 
         schedule();
         autoOpenIfRequested();
+
+        // Observador para ocultar errores 404 cuando estamos en /serversplitter
+        watchFor404Container();
 
         if (typeof window.MutationObserver === 'function') {
             new window.MutationObserver(schedule).observe(document.documentElement, {
