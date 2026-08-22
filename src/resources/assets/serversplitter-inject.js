@@ -90,10 +90,23 @@
 
     /**
      * true si la ruta actual es parte del fragmento de ServerSplitter
-     * (/server/<id>/serversplitter o cualquier subruta dentro).
+     * (/server/<id>/serversplitter o cualquier subruta dentro) O si
+     * estamos en la pagina del servidor pero con ?ss=1 (recarga mientras
+     * ServerSplitter se esta cargando).
      */
     function isInServerSplitterRoute() {
-        return SPLITTER_PATH.test(window.location.pathname);
+        // Caso 1: Estamos en /server/<id>/serversplitter (ruta estable)
+        if (SPLITTER_PATH.test(window.location.pathname)) {
+            return true;
+        }
+
+        // Caso 2: Estamos en /server/<id> pero con ?ss=1 en la URL
+        // (durante la recarga/apertura automatica de ServerSplitter)
+        var params = new URLSearchParams(window.location.search);
+        var isServerPath = SERVER_PATH.test(window.location.pathname);
+        var hasSsParam = params.get('ss') === '1';
+
+        return isServerPath && hasSsParam;
     }
 
     /**
