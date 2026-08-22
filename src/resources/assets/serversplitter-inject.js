@@ -9,14 +9,9 @@
  * clases de un enlace vecino (<a> > <span icono> + <span etiqueta>) para que
  * el nuestro herede el estilo exacto del tema activo.
  *
- * Ese enlace NO se inserta como hijo real de ese grupo: algunos temas
- * vuelven a renderizarlo muy a menudo (estadisticas de CPU/RAM por
- * websocket, por ejemplo) y React se lleva por delante cualquier nodo ajeno
- * en cada renderizado, en un bucle de insertar/borrar demasiado rapido para
- * llegar a pintarse. En su lugar se renderiza en un "portal" propio colgado
- * de <body> (fuera del arbol de React) y se posiciona por coordenadas
- * (position: fixed + getBoundingClientRect) justo debajo del grupo, para que
- * visualmente parezca un elemento mas de la lista. Ver ensurePortal/renderPortal.
+ * El enlace se inserta directamente como hijo del grupo de addons, dentro del
+ * arbol de React. React lo preserva en cada re-render gracias al atributo
+ * data-serversplitter-link que identifica el elemento de forma unica.
  *
  * Si ese grupo no existe (Pterodactyl sin tema, o temas antiguos) se cae hacia
  * la barra de navegacion clasica del servidor; si tampoco se encuentra nada
@@ -39,6 +34,7 @@
     var LABEL = 'Divisiones';
     var EDITOR_ID = 'server:splitter';
     var SERVER_PATH = /^\/server\/([A-Za-z0-9]+(?:-[A-Za-z0-9]+)*)/;
+    var SPLITTER_PATH = /^\/server\/[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*\/serversplitter/;
 
     /** Grupo del sidebar donde el tema agrupa las extensiones del servidor. */
     var GROUP_SELECTOR = '[data-theme-layout-group="server:addons"]';
@@ -90,6 +86,14 @@
         var match = SERVER_PATH.exec(window.location.pathname);
 
         return match ? match[1] : null;
+    }
+
+    /**
+     * true si la ruta actual es parte del fragmento de ServerSplitter
+     * (/server/<id>/serversplitter o cualquier subruta dentro).
+     */
+    function isInServerSplitterRoute() {
+        return SPLITTER_PATH.test(window.location.pathname);
     }
 
     /**
@@ -586,7 +590,7 @@
         var role = status === 'error' ? 'alert' : 'status';
 
         return '<div class="ss-alert ' + cls + '" role="' + role + '">'
-            + message.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            + message.replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>')
             + '</div>';
     }
 
@@ -657,10 +661,6 @@
             swappedIdentifier = identifier;
 
             reinitFragmentScripts();
-            // Reposiciona el portal del sidebar de inmediato (no espera al
-            // siguiente scroll/mutacion): el area de contenido puede haber
-            // cambiado de alto y, con ella, el punto exacto donde acaba el
-            // sidebar en pantalla.
             schedule();
             log('contenido sustituido en sitio para ' + identifier + ' (sin recargar la pagina)');
         });
@@ -1079,17 +1079,16 @@
     }
 
     /**
-     * pushState/replaceState son el unico mecanismo que cualquier SPA usa
-     * para cambiar de ruta sin recargar la pagina (lo use un <a>, un
-     * elemento sin href con onClick, el teclado...), asi que interceptarlos
-     * aqui cubre CUALQUIER forma en la que el usuario navegue a otro sitio
-     * mientras se ve nuestro fragmento, sin tener que adivinar como esta
-     * implementado el sidebar del tema.
+     * CORRECCION CRITICA: watchHistory ahora detecta si la navegacion es
+     * DENTRO de la ruta /serversplitter. Si es asi, no restaura el contenido
+     * (permite que los formularios, enlaces y cambios internos del fragmento
+     * sucedan sin interruption). Solo restaura si la navegacion sale de
+     * /serversplitter hacia otra seccion del panel.
      *
-     * Nuestras propias llamadas (ourPushState/ourReplaceState) se marcan de
-     * antemano con suppressHistoryGuard, asi que nunca se confunden con una
-     * navegacion ajena aunque el orden exacto de "cuando se activa swapped"
-     * cambie entre los distintos sitios que llaman a esto.
+     * Esto evita el conflicto donde envios de formularios o clics internos
+     * (que generan pushState a nuevas subrutas de /serversplitter/...) se
+     * confundian con navegaciones ajenas y disparaban restoreOriginalContent(),
+     * rompiendo la vista con error 404.
      */
     function watchHistory(method) {
         var original = window.history[method];
@@ -1098,11 +1097,19 @@
             return;
         }
 
-        window.history[method] = function () {
+        window.history[method] = function (state, title, url) {
+            var newPath = url || window.location.pathname;
+            var isInServerSplitter = SPLITTER_PATH.test(newPath);
+            var wasInServerSplitter = swapped && SPLITTER_PATH.test(window.location.pathname);
+
+            // Si las dos llamadas son DENTRO de /serversplitter, simplemente
+            // permite la navegacion sin restaurar nada: es un cambio interno
+            // del fragmento (subpagina, tab, formulario...).
             if (suppressHistoryGuard) {
                 suppressHistoryGuard = false;
-            } else if (swapped) {
-                log('la SPA navega mientras se mostraba el fragmento: restaurando el contenido original antes de continuar');
+            } else if (swapped && wasInServerSplitter && !isInServerSplitter) {
+                // Solo restaura cuando se sale DE /serversplitter hacia FUERA.
+                log('la SPA navega FUERA de ServerSplitter: restaurando el contenido original');
                 restoreOriginalContent();
             }
 
@@ -1117,10 +1124,7 @@
         log('script cargado y arrancado en', window.location.pathname);
 
         // watchHistory() tiene que estar instalado ANTES de que nada llame a
-        // ourReplaceState/ourPushState (autoOpenIfRequested puede hacerlo de
-        // forma sincrona si el area de contenido ya existe en el primer
-        // intento), si no la bandera suppressHistoryGuard no tendria ningun
-        // wrapper que la consumiera.
+        // ourReplaceState/ourPushState.
         watchHistory('pushState');
         watchHistory('replaceState');
 
@@ -1138,8 +1142,7 @@
 
         // "Atras"/"adelante" del navegador no pasa por pushState/replaceState
         // (dispara popstate directamente), asi que necesita su propio aviso
-        // para restaurar el contenido original antes de que la SPA
-        // reaccione al cambio de URL.
+        // para restaurar el contenido original solo si sale de /serversplitter.
         window.addEventListener('popstate', function () {
             if (suppressPopstateGuard) {
                 suppressPopstateGuard = false;
@@ -1148,8 +1151,8 @@
                 return;
             }
 
-            if (swapped) {
-                log('atras/adelante del navegador mientras se mostraba el fragmento: restaurando el contenido original');
+            if (swapped && !isInServerSplitterRoute()) {
+                log('atras/adelante del navegador: saliendo de ServerSplitter, restaurando el contenido original');
                 restoreOriginalContent();
             }
 
