@@ -557,18 +557,18 @@ main.ss-container {
 .ss-server-title {
     font-size: 3.2rem;
     font-weight: 700;
-    margin: -20px 0 12px;
+    margin: -40px 0 12px;
     color: var(--ss-text);
     letter-spacing: -0.02em;
-    text-shadow: 0 6px 20px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.3);
+    text-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 4px 12px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.4);
 }
 
 .ss-divisions-info {
     font-size: 1.05rem;
     font-weight: 500;
-    margin: 0 0 16px;
+    margin: -10px 0 16px;
     color: var(--ss-text);
-    text-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+    text-shadow: 0 6px 16px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 @media (prefers-color-scheme: light) {
