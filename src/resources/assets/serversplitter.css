@@ -557,7 +557,6 @@ main.ss-container {
 .ss-server-title {
     font-size: 3.2rem;
     font-weight: 700;
-    /* margin: -20px 0 12px; */
     color: var(--ss-text);
     letter-spacing: -0.02em;
     text-shadow: 0 6px 20px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.3);
@@ -566,9 +565,9 @@ main.ss-container {
 .ss-divisions-info {
     font-size: 0.9rem;
     font-weight: 500;
-    margin: 0 0 24px;
-    color: #888888;
-    text-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+    margin: 0 0 15px;
+    color:  #ffffff;
+    text-shadow: 0 4px 12px rgb(0 0 0 / 66%)
 }
 
 @media (prefers-color-scheme: light) {
