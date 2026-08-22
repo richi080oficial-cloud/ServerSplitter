@@ -32,7 +32,7 @@ class SplitterController extends Controller
     {
         $parent = $this->resolveServer($server);
 
-        return redirect(url('/server/' . $parent->uuidShort) . '?ss=1');
+        return redirect(url('/server/' . $parent->uuidShort));
     }
 
     /**
@@ -191,11 +191,7 @@ class SplitterController extends Controller
      */
     protected function back(Server $server, string $status, string $message): RedirectResponse
     {
-        $param = $status === 'error' ? 'ss_error' : 'ss_ok';
-
-        $query = http_build_query(['ss' => 1, $param => $message]);
-
-        return redirect(url('/server/' . $server->uuidShort) . '?' . $query);
+        return redirect(url('/server/' . $server->uuidShort));
     }
 
     protected function user(): User
