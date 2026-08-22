@@ -555,9 +555,9 @@ main.ss-container {
 }
 
 .ss-server-title {
-    font-size: 2.4rem;
+    font-size: 3.2rem;
     font-weight: 700;
-    margin: 0;
+    /* margin: -20px 0 12px; */
     color: var(--ss-text);
     letter-spacing: -0.02em;
     text-shadow: 0 6px 20px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.3);
@@ -622,5 +622,11 @@ main.ss-container {
         background: rgba(255, 255, 255, 0.65);
         backdrop-filter: blur(8px);
         border: 1px solid rgba(213, 219, 227, 0.5);
+    }
+}
+
+@media (min-width: 768px) {
+    .fMrgxt {
+        padding-top: 5px;
     }
 }
