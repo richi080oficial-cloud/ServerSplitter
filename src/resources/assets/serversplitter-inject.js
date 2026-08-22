@@ -673,59 +673,15 @@
         return el.children.length + ':' + el.textContent.length;
     }
 
-    /**
-     * Pantalla de carga propia que tapa por completo la ventana mientras se
-     * espera a que la SPA termine de montar antes de auto-abrir el
-     * fragmento (ver autoOpenIfRequested). Sin esto, el usuario ve un
-     * fogonazo de la pagina real (Console/Overview) antes de que cambie a
-     * ServerSplitter, lo que da la sensacion de "panel fantasma" pegado por
-     * fuera en vez de una integracion de verdad. No depende de ninguna
-     * clase del tema ni de serversplitter.css: todo va inline, para que se
-     * pueda mostrar de inmediato, antes incluso de que exista el area de
-     * contenido que estamos esperando.
-     */
+    // Funciones de pantalla de carga deshabilitadas
     var loadingOverlay = null;
 
     function showLoadingOverlay() {
-        if (loadingOverlay !== null) {
-            return;
-        }
-
-        loadingOverlay = document.createElement('div');
-        loadingOverlay.setAttribute('data-serversplitter-loading', '1');
-        loadingOverlay.style.cssText = [
-            'position:fixed', 'inset:0', 'z-index:2147483600',
-            'background:#0f1115', 'color:#e6e9ee',
-            'display:flex', 'flex-direction:column', 'align-items:center', 'justify-content:center',
-            'gap:14px', 'font:500 14px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif'
-        ].join(';');
-
-        var spinner = document.createElement('div');
-        spinner.style.cssText = [
-            'width:34px', 'height:34px', 'border-radius:50%',
-            'border:3px solid rgba(255,255,255,.18)', 'border-top-color:#2e7dd7',
-            'animation:ss-spin 0.8s linear infinite'
-        ].join(';');
-
-        var keyframes = document.createElement('style');
-        keyframes.textContent = '@keyframes ss-spin { to { transform: rotate(360deg); } }';
-
-        var label = document.createElement('div');
-        label.textContent = 'Cargando ServerSplitter...';
-
-        loadingOverlay.appendChild(keyframes);
-        loadingOverlay.appendChild(spinner);
-        loadingOverlay.appendChild(label);
-        document.body.appendChild(loadingOverlay);
+        // Sin operación
     }
 
     function hideLoadingOverlay() {
-        if (loadingOverlay === null) {
-            return;
-        }
-
-        detach(loadingOverlay);
-        loadingOverlay = null;
+        // Sin operación
     }
 
     /**
@@ -768,13 +724,6 @@
         var status = params.has('ss_error') ? 'error' : 'ok';
         var message = params.get('ss_error') || params.get('ss_ok') || null;
 
-        // Tapa la pagina real (Console/Overview) desde el primer instante:
-        // sin esto el usuario ve un fogonazo del contenido de verdad antes
-        // de que aparezca ServerSplitter mientras se espera a que se
-        // estabilice (ver mas abajo). Se quita en cuanto el fragmento esta
-        // insertado, o si algo falla, para no dejar al usuario atascado.
-        showLoadingOverlay();
-
         var cleanHref = '/server/' + encodeURIComponent(identifier) + '/serversplitter';
         var attempts = 0;
         var maxAttempts = 150; // ~15s de margen total a 100ms por intento.
@@ -802,10 +751,8 @@
             window.scrollTo(0, 0);
             contentEl.scrollTop = 0;
 
-            swapInFragment(contentEl, identifier, status, message).then(function () {
-                hideLoadingOverlay();
-            }).catch(function (error) {
-                hideLoadingOverlay();
+            swapInFragment(contentEl, identifier, status, message).catch(function (error) {
+                // Manejo de errores
             });
         };
 
@@ -817,8 +764,6 @@
 
                 if (attempts < maxAttempts) {
                     window.setTimeout(tryOpen, 100);
-                } else {
-                    hideLoadingOverlay();
                 }
 
                 return;
@@ -847,6 +792,7 @@
                 return;
             }
 
+            // Se alcanzó el límite de intentos, proceder de todas formas
             doSwap(contentEl);
         };
 
