@@ -628,5 +628,7 @@ main.ss-container {
 @media (min-width: 768px) {
     .fMrgxt {
         padding-top: 5px;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
     }
 }
