@@ -22,19 +22,19 @@
     /* Si algo se nos escapa de calculo, que haga scroll en vez de recortarse. */
     .ss-admin {
         max-width: 100%;
-        overflow-x: auto;
+        overflow-x: hidden;
     }
 
     .ss-admin .row {
         display: flex;
         flex-wrap: wrap;
-        margin-left: -8px;
-        margin-right: -8px;
+        margin-left: 0;
+        margin-right: 0;
     }
 
     .ss-admin [class*="col-"] {
-        padding-left: 8px;
-        padding-right: 8px;
+        padding-left: 0;
+        padding-right: 0;
         width: 100%;
         flex: 0 0 100%;
         max-width: 100%;
