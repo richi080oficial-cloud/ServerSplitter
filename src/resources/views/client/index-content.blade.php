@@ -13,7 +13,7 @@
 
 <h2 class="ss-server-title">{{ $server->name }}</h2>
 
-<p class="ss-muted">
+<p class="ss-divisions-info">
     Divisiones usadas: <strong>{{ $state['splits_used'] }}</strong> de
     <strong>{{ $state['splits_unlimited'] ? 'ilimitadas' : $state['splits_max'] }}</strong>
     &middot; Modo: <strong>{{ $distribute ? 'reparto equitativo' : 'resta de la diferencia' }}</strong>
